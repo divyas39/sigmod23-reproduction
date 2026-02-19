@@ -18,7 +18,10 @@ import numpy as np
 import pickle
 from decimal import *
 
-from qiskit.algorithms.optimizers import AQGD
+from qiskit.circuit.library.n_local.qaoa_ansatz import QAOAAnsatz
+import Scripts.QUBOGenerator1 as QUBOGenerator1
+
+from qiskit.algorithms.optimizers import AQGD,COBYLA,SPSA
 from qiskit.algorithms import QAOA
 from qiskit_optimization.algorithms import MinimumEigenOptimizer
 from qiskit.utils import QuantumInstance
@@ -26,6 +29,24 @@ from qiskit import IBMQ
 from qiskit.providers.aer import QasmSimulator
 
 import config as config
+
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--trial", type=int, default=1, help="Trial number passed from bash")
+parser.add_argument("--reps", type=int, default=1, help="Tag for distinguishing runs")
+parser.add_argument("--optimizer",type=int,default=0,help="Check with optimizer is used")
+args, _ = parser.parse_known_args() 
+
+TRIAL_ID = args.trial  
+TAG = args.reps
+optmi=args.optimizer
+if(optmi==0):
+    current_optim="AQGD"
+elif(optmi==1):
+    current_optim="COBYLA"
+else:
+    current_optim="SPSA"
 
 
 # In[2]:
@@ -153,16 +174,173 @@ def get_IBMQ_backend():
     quantum_instance = QuantumInstance(backend=backend)
     return quantum_instance
 
-def solve_with_QAOA(qubo, iterations, reps=1, use_local_simulator=False):
+def solve_with_QAOA(qubo, iterations, reps=TAG, use_local_simulator=False,result_dir="./9/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
+                    card=None, pred=None, pred_sel=None, thres=None, inputNumber=0):
     if use_local_simulator:
         quantum_instance = get_local_QASM_backend()
     else:
         quantum_instance = get_IBMQ_backend()
-    optimizer = AQGD(maxiter=iterations)
-    qaoa_meas = QAOA(optimizer=optimizer, quantum_instance=quantum_instance, reps=reps, initial_point=[0., 0.])
+    
+
+    os.makedirs(result_dir, exist_ok=True)
+    energy_log_path = os.path.join(result_dir, f"energy_per_iteration_{iterations}_{current_optim}_{TAG}_{TRIAL_ID}.csv")
+    energies = []
+    if current_optim == "AQGD":
+        checkpoint_every = 910
+    elif current_optim == "SPSA":
+        checkpoint_every = 210
+    else:  
+        checkpoint_every = 0
+    last_params = {"val": None}
+    last_eval = {"val": 0}
+
+    checkpoint_shots = 128
+
+
+    checkpoint_backend = QasmSimulator(seed_simulator=12345)
+    checkpoint_qi = QuantumInstance(backend=checkpoint_backend, shots=checkpoint_shots)
+    op, _ = qubo.to_ising()
+    checkpoint_ansatz = QAOAAnsatz(op, reps).decompose()
+
+    min_order, alt_min_order, _ = Postprocessing.get_optimal_join_order(card, pred, pred_sel)
+    def _ensure_header(path, header):
+        if not os.path.exists(path):
+            with open(path, "w", newline="") as f:
+                csv.writer(f).writerow(header)
+    
+
+
+    def _run_checkpoint(eval_count, parameters):
+        if (not checkpoint_every) or (int(eval_count) % checkpoint_every != 0):
+            return
+
+        if card is None or pred is None or pred_sel is None or thres is None:
+            print(f"[checkpoint {int(eval_count)}] skip: missing card/pred/pred_sel/thres")
+            return
+        
+        ckpt_tag = f"eval{int(eval_count)}_{iterations}_{current_optim}_reps{TAG}_trial{TRIAL_ID}_input{inputNumber}"
+        all_path   = os.path.join(result_dir, f"checkpoint_ALL_{ckpt_tag}.csv")
+        valid_path = os.path.join(result_dir, f"checkpoint_VALID_{ckpt_tag}.csv")
+        opt_path   = os.path.join(result_dir, f"checkpoint_OPTIMAL_{ckpt_tag}.csv")
+
+        header_all = ["eval_count","bitstring","count","prob","energy"]
+        header_vo = ["eval_count","bitstring","count","prob","energy","cost","is_optimal","join_order_json"]
+
+        _ensure_header(all_path, header_all)
+        _ensure_header(valid_path, header_vo)
+        _ensure_header(opt_path, header_vo)
+
+
+
+        
+        param_map = {p: v for p, v in zip(checkpoint_ansatz.parameters, parameters)}
+        qc = checkpoint_ansatz.assign_parameters(param_map, inplace=False)
+        qc = qc.copy()
+        qc.measure_all()
+
+
+        result = checkpoint_qi.execute(qc)
+        counts = result.get_counts()
+        if not counts:
+            return
+
+        total = sum(counts.values())
+        sorted_items = sorted(counts.items(), key=lambda kv: kv[1], reverse=True)
+
+        valid_ratio = 0.0
+        optimal_ratio = 0.0
+        best_cost = None
+        best_join_order = None
+
+        with open(all_path, "a", newline="") as fa, \
+            open(valid_path, "a", newline="") as fv, \
+            open(opt_path, "a", newline="") as fo:
+
+            wa, wv, wo = csv.writer(fa), csv.writer(fv), csv.writer(fo)
+
+            for rank, (bitstring, cnt) in enumerate(sorted_items, start=1):
+                b = bitstring.replace(" ", "")
+                prob = cnt / total
+
+                x = np.array([int(ch) for ch in b[::-1]], dtype=int)
+                b= b[::-1]
+                try:
+                    energy = float(qubo.objective.evaluate(x))
+                except Exception:
+                    energy = float(qubo.objective.evaluate(list(x)))
+
+                sample = {i: int(v) for i, v in enumerate(x)}
+                join_order = Postprocessing.get_join_tree_leaves(sample, len(card))
+                is_valid = join_order is not None
+
+                cost = ""
+                is_opt = 0
+                join_order_json = ""
+
+                if is_valid:
+                    cost_val = Postprocessing.get_actual_costs_for_sample(join_order, card, pred, pred_sel, thres)
+                    cost = float(cost_val)
+                    valid_ratio += prob
+
+                    if best_cost is None or cost < best_cost:
+                        best_cost = cost
+                        best_join_order = join_order
+
+                    if join_order == min_order or join_order == alt_min_order:
+                        is_opt = 1
+                        optimal_ratio += prob
+
+                    join_order_json = json.dumps(join_order)
+
+                row_all = [int(eval_count), b, int(cnt), prob, energy]
+                wa.writerow(row_all)
+
+                if is_valid:
+                    row_vo = [int(eval_count), b, int(cnt), prob, energy, cost, int(is_opt), join_order_json]
+
+                    wv.writerow(row_vo)
+
+                    if is_opt == 1:
+                        wo.writerow(row_vo)
+
+    def callback(eval_count, parameters, mean, stddev):
+
+        
+        try:
+            energy_value = float(np.real(mean))
+        except Exception:
+            energy_value = float(np.mean(mean))  
+        energies.append((eval_count, energy_value))
+
+        last_params['val']=list(parameters)
+        last_eval['val']=int(eval_count)
+        # _run_checkpoint(eval_count, parameters)
+
+
+    if(optmi==1):
+        optimizer=COBYLA(maxiter=iterations)
+    elif(optmi==2):
+        optimizer=SPSA(maxiter=iterations)
+    else:
+        optimizer = AQGD(maxiter=iterations,eta=0.01)
+    initial_point=[0., 0.]
+    if TAG==2:
+            initial_point=[1., 2., 3., 4.]
+    if TAG==3:
+            initial_point=[0., 0., 0., 0.,0.,0.]
+    qaoa_meas = QAOA(optimizer=optimizer, quantum_instance=quantum_instance, reps=reps, initial_point=initial_point,callback=callback)
     qaoa = MinimumEigenOptimizer(qaoa_meas)
     qaoa_result = qaoa.solve(qubo)
-    return qaoa_result
+
+    with open(energy_log_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["iteration", "energy"])
+        writer.writerows(energies)
+    
+    final_point = last_params["val"] if last_params["val"] is not None else initial_point
+    used_eval = last_eval["val"]
+
+    return qaoa_result,final_point,used_eval
 
 def conduct_IBMQ_QPU_experiments():
     
@@ -172,27 +350,75 @@ def conduct_IBMQ_QPU_experiments():
         IBMQ.save_account(token)
         IBMQ.load_account()
     
-    iterations_categories = [20, 50]
-    thres = [10]
-    num_decimal_pos = 0
+    iterations_categories = [1]
+    thres = {0:[150],1:[200],2:[300]}
+    num_decimal_pos = 3
     optimal_solution = 0
+    step=10
     
     for iterations in iterations_categories:
-        for i in range(4):
+        for i in range(1):
+            init_point = None
             
-            #card, pred, pred_sel = ProblemGenerator.get_join_ordering_problem('ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/JSON/' + str(i) + '_predicates', generated_problems=False)
-            #qubo, weight_a = QUBOGenerator.generate_QUBO_for_IBMQ(card, thres, num_decimal_pos, pred, pred_sel)
-            qubo = ProblemGenerator.get_join_ordering_qubo('ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/QUBO/' + str(i) + '_predicates')
 
+            card, pred, pred_sel = ProblemGenerator.get_join_ordering_problem('ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/JSON/' + str(i) + '_predicates', generated_problems=False)
+
+            # qubo, weight_a = QUBOGenerator.generate_QUBO_for_IBMQ(card, thres[i], num_decimal_pos, pred, pred_sel)
+
+            qubo, penalty_weight=QUBOGenerator1.generate_IBMQ_QUBO_for_left_deep_trees(card, pred, pred_sel, thres[i][0], num_decimal_pos)
+            # qubo = ProblemGenerator.get_join_ordering_qubo('ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/QUBO/' + str(i) + '_predicates')
+            curentWeek="week14"
+            
             response = None
+            currentPath = f'{curentWeek}/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data'
+            result_dir = os.path.join(
+                        currentPath,
+                        f"iterations_{iterations}",
+                        f"reps_{TAG}",
+                        f"{current_optim}",
+                        f"input{i}"
+                    )
             if processing == "qpu":
-                response = solve_with_QAOA(qubo, iterations, use_local_simulator=False)
-                result_path_prefix = 'ExperimentalAnalysis/IBMQ/QPUPerformance/Results/QPU_Data'
+                        response,init_point, used_eval = solve_with_QAOA(qubo, iterations, use_local_simulator=False)
+                        result_path_prefix = 'ExperimentalAnalysis/IBMQ/QPUPerformance/Results/QPU_Data'
             else:
-                response = solve_with_QAOA(qubo, iterations, use_local_simulator=True)
-                result_path_prefix = 'ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data'
+                        response,init_point, used_eval = solve_with_QAOA(qubo, iterations, use_local_simulator=True,result_dir=result_dir,reps=TAG,
+                                                                         card=card, pred=pred, pred_sel=pred_sel, thres=thres[i],inputNumber=i)
+                        result_path_prefix = f'ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data'
+        #     for cumulative_iters in range(step, iterations + 1, step):
+        #         currentPath = f'{curentWeek}/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/checkpoint{cumulative_iters}'
+        #         result_dir = os.path.join(
+        #                 currentPath,
+        #                 f"iterations_{cumulative_iters}",
+        #                 f"reps_{TAG}",
+        #                 f"{current_optim}",
+        #                 f"input{i}"
+        #             )
+        #         if processing == "qpu":
+        #                 response,init_point, used_eval = solve_with_QAOA(qubo, step, use_local_simulator=False)
+        #                 result_path_prefix = 'ExperimentalAnalysis/IBMQ/QPUPerformance/Results/QPU_Data'
+        #         else:
+        #                 response,init_point, used_eval = solve_with_QAOA(qubo, step, use_local_simulator=True,result_dir=result_dir,reps=TAG,initial_point=init_point)
+        #                 result_path_prefix = f'ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data'
+    
+        #         if not os.path.exists(checkpoint_csv):
+        #          with open(checkpoint_csv, "w", newline="") as f:
+        #             w = csv.writer(f)
+        #             w.writerow(["cumulative_iters", "input_i", "best_join_order", "best_cost", "valid_ratio", "optimal_ratio"])
 
-            pickle_results(result_path_prefix + '/' + str(iterations) + '_Iterations/' + str(i) + '_predicates', response)
+        #         pickle_results(
+        #     result_path_prefix + f"/TOTAL_{iterations}/" + str(cumulative_iters) + "_Iterations/" + str(i) + "_predicates",
+        #     response
+        # )
+        #         best_join_order, best_cost, valid_ratio, optimal_ratio = Postprocessing.postprocess_IBMQ_response(
+        #     response, card, pred, pred_sel, thres,base_dir=currentPath,trial_id1=TRIAL_ID,tag1=TAG,current_optim1=current_optim,iterations1=cumulative_iters,inputNumber=i
+        # )
+        #         with open(checkpoint_csv, "a", newline="") as f:
+        #             w = csv.writer(f)
+        #             w.writerow([cumulative_iters, i, json.dumps(best_join_order), best_cost, get_rounded_val(valid_ratio), get_rounded_val(optimal_ratio),init_point])
+        #         if optmi == 1 and used_eval < step:
+        #             break
+            pickle_results(result_path_prefix + '/' + str(iterations) + '_Iterations/' + str(i) + '_predicates-newQUBO', response)
 
 def conduct_IBMQ_transpilation_experiments(tket_optimizer, optimization_level, sample_size = 20):
     result_path_prefix = 'ExperimentalAnalysis/IBMQ/Embeddings/Results/'
@@ -206,7 +432,8 @@ def conduct_IBMQ_transpilation_experiments(tket_optimizer, optimization_level, s
     else:
         result_path_prefix = 'ExperimentalAnalysis/IBMQ/Embeddings/Results/Collected_Data'
 
-    for i in range(4):
+
+    for i in range(3):
         for k in range(sample_size):
             ## Experiments for varying predicate numbers, for the IBMQ Auckland topology
             qubo = ProblemGenerator.get_join_ordering_qubo('ExperimentalAnalysis/IBMQ/Embeddings/Problems/QUBO/predicate_variation/' + str(i) + '_predicates')
@@ -257,9 +484,9 @@ def process_data(depths):
     maximum_depth = np.amax(depths)
     return minimum_depth, mean_depth, median_depth, maximum_depth
 
-def parse_QPU_data(include_header=True):
+def parse_QPU_data(include_header=True,currentInput=0):
     if include_header:
-        save_to_csv(['num_qaoa_iterations', 'num_predicates', 'valid_ratio', 'opt_ratio'], 'ExperimentalAnalysis/IBMQ/QPUPerformance/Results', 'results.txt')
+        save_to_csv(['num_qaoa_iterations', 'num_predicates', 'valid_ratio', 'opt_ratio',f'Trial: {TRIAL_ID}',f'Reps:{TAG}',f'Optimizer:{current_optim}'], 'ExperimentalAnalysis/IBMQ/QPUPerformance/Results', 'results.txt')
  
     processing = config.configuration["ibmq-processing"]
     if processing == "qpu":
@@ -269,14 +496,16 @@ def parse_QPU_data(include_header=True):
     else:
         result_path_prefix = 'ExperimentalAnalysis/IBMQ/QPUPerformance/Results/Collected_Data/'
         
-    iterations_categories = [20, 50]
-    thres_vals = {0: [100], 1: [10], 2: [10], 3: [10]}
+    iterations_categories = [1]
+    thres_vals = {0:[150],1:[200],2:[300], 3: [10]}
     
     for iterations in iterations_categories:
-        for i in range(4):
+        for i in range(1):
+
             card, pred, pred_sel = ProblemGenerator.get_join_ordering_problem('ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/JSON/' + str(i) + '_predicates', generated_problems=False)
             response = load_pickled_result(result_path_prefix + '/' + str(iterations) + '_Iterations/' + str(i) + '_predicates')
-            best_join_order, best_join_order_costs, valid_ratio, optimal_ratio = Postprocessing.postprocess_IBMQ_response(response, card, pred, pred_sel, thres_vals[i])
+            
+            best_join_order, best_join_order_costs, valid_ratio, optimal_ratio = Postprocessing.postprocess_IBMQ_response(response, card, pred, pred_sel, thres_vals[i],trial_id1=TRIAL_ID,tag1=TAG,current_optim1=current_optim,iterations1=iterations,inputNumber=i)
             save_to_csv([iterations, i, get_rounded_val(valid_ratio), get_rounded_val(optimal_ratio)], 'ExperimentalAnalysis/IBMQ/QPUPerformance/Results', 'results.txt')
 
             
@@ -300,7 +529,7 @@ def parse_transpilation_data(optimizers, topologies, opt_levels, aggregate_resul
      
     qubits = [18, 21, 24, 27]
     for optimizer in optimizers:
-        for i in range(4):
+        for i in range(1):
             for opt_level in opt_levels:
                 optimizer_string = None
                 samplesize = 0
@@ -359,10 +588,11 @@ if __name__ == '__main__':
     optimizers = ["Tket", "Qiskit"]
     topologies = ["Auckland", "Washington"]
     opt_levels = [1, 2, 3]
-    parse_transpilation_data(optimizers, topologies, opt_levels, aggregate_results=False)
+    ## parse_transpilation_data(optimizers, topologies, opt_levels, aggregate_results=False)
 
     processing = config.configuration["ibmq-processing"]
     if processing != "collected":
         conduct_IBMQ_QPU_experiments()
-    parse_QPU_data()
+
+    # parse_QPU_data()
 

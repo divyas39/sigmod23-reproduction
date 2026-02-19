@@ -90,6 +90,8 @@ def is_variable_pruned(thres_index, join_index, sorted_card, thres, enable_pruni
 ## Returns a dictionary which contains for a tuple (r, j) where r denotes the r-the threshold value and j denotes
 ## the j-th join the upper bound C for the continuous slack variable of a type 7 constraint.
 ## If it is determined that the variable cto_rj and thus the constraint is unnecessary, the value for (r, j) will be 0 instead.
+
+## compare every thres at index j which the product of all card before index i
 def calculate_slack_upper_bound_dict(thres, card, log_thres, log_card, enable_pruning):
     upper_bound_dict = {}
     sorted_card = sorted(card, reverse=True)
@@ -138,10 +140,14 @@ def generate_BILP_model(card, thres, num_decimal_pos, pred, pred_sel, enable_pru
     log_cards = get_log_values(card, num_decimal_pos)
     log_pred_sel = get_log_values(pred_sel, num_decimal_pos)
     log_thres = get_log_values(thres, num_decimal_pos)
-    
+
+
+    ##Calculate the cost at each j join, store as (i,j)= sum( log_cards[i] for i in range j)
     slack_upper_bound_dict = calculate_slack_upper_bound_dict(thres, card, log_thres, log_cards, enable_pruning)
 
+    ##calcuate difference between slack_upper_bound_dict[(i,j)] and thres[i]
     large_threshold_coefficients = get_large_threshold_coefficients(num_thres, num_joins, log_thres, log_cards)
+    
     num_cnstr7_slack_variables = get_cnstr7_slack_variable_numbers(num_thres, num_joins, log_thres, slack_upper_bound_dict, precision_weight)
     cnstr7_exp_dictionary = get_cnstr7_slack_exponential_dictionary(num_cnstr7_slack_variables)
 
@@ -301,6 +307,7 @@ def generate_QUBO_for_IBMQ(card, thres, num_decimal_pos, pred, pred_sel, enable_
 def generate_QUBO_for_DWave(card, thres, num_decimal_pos, pred, pred_sel, enable_pruning=True):
     
     bilp, weight_a, weight_b = generate_BILP_model(card, thres, num_decimal_pos, pred, pred_sel, enable_pruning)
+
     
     ## Extract the coefficent matrix (A) from model                
 

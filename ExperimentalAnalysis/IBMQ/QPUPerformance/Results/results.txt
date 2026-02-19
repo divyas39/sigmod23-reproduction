@@ -1,0 +1,33 @@
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:1,Optimizer:AQGD
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:1,Optimizer:AQGD
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:1,Optimizer:AQGD
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:1,Optimizer:AQGD
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:1,Optimizer:AQGD
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:1,Optimizer:AQGD
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:1,Optimizer:AQGD
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:1,Optimizer:AQGD
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:1,Optimizer:AQGD
+1000,0,0.0732,0.0264
+1000,1,0.0449,0.0225
+1000,2,0.1035,0.0371
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:1,Optimizer:AQGD
+1000,0,0.0732,0.0264
+1000,1,0.0449,0.0225
+1000,2,0.1035,0.0371
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:1,Optimizer:AQGD
+1000,0,0.0732,0.0264
+1000,1,0.0449,0.0225
+1000,2,0.1035,0.0371
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:1,Optimizer:AQGD
+1000,0,0.0732,0.0264
+1000,1,0.0449,0.0225
+1000,2,0.1035,0.0371
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:1,Optimizer:AQGD
+1000,0,0.0732,0.0264
+1000,1,0.0449,0.0225
+1000,2,0.1035,0.0371
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:1,Optimizer:AQGD
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:1,Optimizer:AQGD
+1000,0,0.0732,0.0264
+1000,1,0.0449,0.0225
+1000,2,0.1035,0.0371

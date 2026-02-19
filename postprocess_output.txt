@@ -1,0 +1,3 @@
+optimal function value: 0.0
+optimal value: [1. 1. 0. 0. 0. 0. 0. 0. 0. 0. 0. 1. 0. 0. 0. 1.]
+status: SUCCESS
