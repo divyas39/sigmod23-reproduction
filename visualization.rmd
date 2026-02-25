@@ -1,0 +1,204 @@
+---
+title: "Visualization"
+output:
+  pdf_document: default
+  html_document: default
+date: "2026-01-07"
+---
+
+```{r setup, include=FALSE,echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r,echo=FALSE}
+library(tidyverse)
+library(glue)
+cost_energy_plot <- function(file_path, weighted_points = TRUE,targetCol="cost") {
+  library(readr)
+  library(dplyr)
+  library(ggplot2)
+
+  df <- read_csv(file_path, show_col_types = FALSE)
+
+  if (!("probability" %in% names(df)) && ("prob" %in% names(df))) {
+    df <- df %>% rename(probability = prob)
+  }
+  if (!("probability" %in% names(df))) {
+    df <- df %>% mutate(probability = 1)
+  }
+
+  if (!all(c("energy", targetCol) %in% names(df))) {
+    stop("not energy or cost")
+  }
+
+  df <- df %>%
+    mutate(
+      energy = as.numeric(energy),
+      cost = as.numeric(.data[[targetCol]]),
+      probability = as.numeric(probability),
+      cost = factor(cost, levels = sort(unique(cost))) 
+    ) %>%
+    filter(is.finite(energy), is.finite(probability), probability >= 0)
+
+  p <- ggplot(df, aes(x = cost, y = energy)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(
+      aes(size = if (weighted_points) probability else NULL),
+      width = 0.18, alpha = 0.35
+    ) +
+    theme_bw() +
+    labs(x = "Cost", y = "Energy", title = "Energy distribution by Cost")
+
+  if (weighted_points) {
+    p <- p + scale_size_continuous(range = c(0.5, 6))
+  }
+
+  print(p)
+}
+
+
+
+
+```
+
+```{r,echo=FALSE}
+cost_energy_boxplot_prob <- function(file_path, show_points = TRUE,targetCol="cost",thresh="()",opt="") {
+  library(readr)
+  library(dplyr)
+  library(tidyr)
+  library(ggplot2)
+
+  df <- read_csv(file_path, show_col_types = FALSE)
+
+  if (!("probability" %in% names(df)) && ("prob" %in% names(df))) {
+    df <- df %>% rename(probability = prob)
+  }
+
+  df <- df %>%
+    transmute(
+      cost = as.numeric(.data[[targetCol]]),
+      energy = as.numeric(energy),
+      probability = as.numeric(probability)
+    ) %>%
+    filter(is.finite(energy), is.finite(probability), probability > 0)
+
+  w0 <- min(df$probability)
+  df_exp <- df %>%
+    mutate(w = pmax(1L, round(probability / w0))) %>%
+    uncount(w)
+
+  p <- ggplot(df_exp, aes(x = factor(cost), y = energy)) +
+    geom_boxplot() +
+    theme_bw() +
+    labs(x = targetCol, y = "Energy",
+         title = glue("Energy vs {targetCol}; thres: {thresh};opt:{opt} "))
+
+  if (show_points) {
+    br <- sort(unique(df$probability))
+    p <- p +
+      geom_point(
+        data = df,
+        aes(size = probability),
+        alpha = 0.5,
+        position = position_jitter(width = 0.15, height = 0)
+      ) +
+      scale_size_continuous(breaks = br, labels = br, name = "probability")
+  }
+
+  print(p)
+}
+
+```
+
+```{r}
+cost_energy_boxplot_prob_noweight <- function(file_path, show_points = TRUE,targetCol="cost",thresh="()",opt="") {
+  library(readr)
+  library(dplyr)
+  library(tidyr)
+  library(ggplot2)
+
+  df <- read_csv(file_path, show_col_types = FALSE)
+
+  if (!("probability" %in% names(df)) && ("prob" %in% names(df))) {
+    df <- df %>% rename(probability = prob)
+  }
+
+  df <- df %>%
+    transmute(
+      cost = as.numeric(.data[[targetCol]]),
+      energy = as.numeric(energy),
+      probability = as.numeric(probability)
+    ) %>%
+    filter(is.finite(energy), is.finite(probability), probability > 0)
+
+  w0 <- min(df$probability)
+  df_exp <- df %>%
+    mutate(w = pmax(1L, round(probability / w0))) %>%
+    uncount(w)
+
+  p <- ggplot(df_exp, aes(x = factor(cost), y = energy)) +
+    geom_boxplot() +
+    theme_bw() +
+    labs(x = targetCol, y = "Energy",
+         title = glue("Energy vs {targetCol}; thres: {thresh};opt:{opt} "))
+  print(p)
+}
+```
+
+
+
+```{r,echo=FALSE}
+print(glue("Input cardi: [10,15,20]"))
+inputs=list(c(150),c(120,170),c(149,199,299))
+targetCols=c("cost")
+for (opt in c("AQGD","COBYLA","SPSA")) {
+  for(input in c(0,1,2)){
+    for(target in targetCols){
+          res <- cost_energy_boxplot_prob(glue("/Users/ruokun/Desktop/Project/Week10WithI-OCost/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_1000/reps_2/{opt}/bitstring_1/bitstring_valid_1000_{opt}_2_1_input{input}_FINALCOST.csv"),targetCol=target,thresh=inputs[input+1],opt=opt)
+    print(glue("optimizer{opt}; input thres:({toString(inputs[input+1])}); costType:{target}"))
+    }
+  }
+  
+
+}
+
+
+
+
+```
+```{r}
+inputs=list(c(150, 200, 300),c(160, 200, 240, 280),c(120, 150, 180, 220, 260, 300))
+targetCols=c("cost")
+for (opt in c("AQGD","COBYLA","SPSA")) {
+  for(input in c(0,1,2)){
+    for(target in targetCols){
+          res <- cost_energy_boxplot_prob_noweight(glue("/Users/ruokun/Desktop/Project/Week11WithI:OCost/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_1000/reps_2/{opt}/bitstring_1/bitstring_valid_1000_{opt}_2_1_input{input}.csv"),targetCol=target,thresh=inputs[input+1],opt=opt)
+    print(glue("optimizer{opt}; input thres:({toString(inputs[input+1])}); costType:{target}"))
+    }
+  }
+  
+
+}
+```
+
+
+```{r}
+targetCols=c("cost")
+for (opt in c("AQGD","COBYLA","SPSA")) {
+  for(input in c(0)){
+    for(target in targetCols){
+          res <- cost_energy_boxplot_prob_noweight(glue("/Users/ruokun/Desktop/Project/Extra_Sample_for_Meeting/Card_10_10_100/thres_10/{opt}/bitstring_1/bitstring_valid_6_{opt}_2_1_input{input}.csv"),targetCol=target,thresh=inputs[input+1],opt=opt)
+    print(glue("optimizer{opt}; input thres:({toString(inputs[input+1])}); costType:{target}"))
+    }
+  }
+  
+
+}
+```
+
