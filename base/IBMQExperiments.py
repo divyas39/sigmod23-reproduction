@@ -203,6 +203,10 @@ def solve_with_QAOA(qubo, iterations, reps=TAG, use_local_simulator=False,result
     # checkpoint_ansatz = QAOAAnsatz(op, reps).decompose()
 
     min_order, alt_min_order, _ = Postprocessing.get_optimal_join_order(card, pred, pred_sel)
+    # Track minimum energy seen during optimization and the corresponding parameters
+    min_energy_seen = float('inf')
+    min_params = None
+    min_eval_idx = None
     def _ensure_header(path, header):
         if not os.path.exists(path):
             with open(path, "w", newline="") as f:
@@ -314,6 +318,15 @@ def solve_with_QAOA(qubo, iterations, reps=TAG, use_local_simulator=False,result
 
         last_params['val']=list(parameters)
         last_eval['val']=int(eval_count)
+        # update min-energy buffer if this is the best seen so far
+        nonlocal min_energy_seen, min_params, min_eval_idx
+        try:
+            if energy_value < min_energy_seen:
+                min_energy_seen = energy_value
+                min_params = list(parameters)
+                min_eval_idx = int(eval_count)
+        except Exception:
+            pass
         # _run_checkpoint(eval_count, parameters)
 
 
@@ -331,6 +344,15 @@ def solve_with_QAOA(qubo, iterations, reps=TAG, use_local_simulator=False,result
     qaoa_meas = QAOA(optimizer=optimizer, quantum_instance=quantum_instance, reps=reps, initial_point=initial_point,callback=callback)
     qaoa = MinimumEigenOptimizer(qaoa_meas)
     qaoa_result = qaoa.solve(qubo)
+    # Prepare a checkpoint ansatz and quantum instance for later sampling of the best-found parameters
+    try:
+        op, _ = qubo.to_ising()
+        checkpoint_backend = QasmSimulator()
+        checkpoint_qi = QuantumInstance(backend=checkpoint_backend, shots=10240)
+        checkpoint_ansatz = QAOAAnsatz(op, reps)
+    except Exception:
+        checkpoint_ansatz = None
+        checkpoint_qi = None
 
     with open(energy_log_path, "w", newline="") as f:
         writer = csv.writer(f)
@@ -340,7 +362,41 @@ def solve_with_QAOA(qubo, iterations, reps=TAG, use_local_simulator=False,result
     final_point = last_params["val"] if last_params["val"] is not None else initial_point
     used_eval = last_eval["val"]
 
-    return qaoa_result,final_point,used_eval
+    # Build a small buffer describing the minimum-energy quantum state found (parameters + measured samples)
+    min_state_buffer = None
+    if min_params is not None and checkpoint_ansatz is not None and checkpoint_qi is not None:
+        try:
+            # assign parameters to the ansatz
+            param_map = {p: v for p, v in zip(checkpoint_ansatz.parameters, min_params)}
+            qc = checkpoint_ansatz.assign_parameters(param_map, inplace=False)
+            qc = qc.copy()
+            qc.measure_all()
+            result = checkpoint_qi.execute(qc)
+            counts = result.get_counts()
+            shots = sum(counts.values()) if counts else 0
+
+            samples = []
+            for bitstring, cnt in counts.items():
+                b = bitstring.replace(' ', '')[::-1]
+                x = [int(ch) for ch in b]
+                prob = cnt / shots if shots else 0.0
+                try:
+                    energy = float(qubo.objective.evaluate(x))
+                except Exception:
+                    energy = float(qubo.objective.evaluate(list(x)))
+                samples.append({'x': x, 'fval': energy, 'probability': prob, 'count': cnt})
+
+            min_state_buffer = {
+                'min_energy': float(min_energy_seen),
+                'min_eval_idx': min_eval_idx,
+                'min_params': min_params,
+                'shots': shots,
+                'samples': samples
+            }
+        except Exception:
+            min_state_buffer = None
+
+    return qaoa_result, final_point, used_eval, min_state_buffer
 
 def conduct_IBMQ_QPU_experiments():
     
@@ -379,12 +435,51 @@ def conduct_IBMQ_QPU_experiments():
                         f"input{i}"
                     )
             if processing == "qpu":
-                        response,init_point, used_eval = solve_with_QAOA(qubo, iterations, use_local_simulator=False)
+                        response,init_point, used_eval, min_state_buffer = solve_with_QAOA(qubo, iterations, use_local_simulator=False)
                         result_path_prefix = 'ExperimentalAnalysis/IBMQ/QPUPerformance/Results/QPU_Data'
+                        # If we obtained a buffered minimum-state, postprocess it for readout summary
+                        if min_state_buffer is not None:
+                            try:
+                                # Build a minimal response-like object expected by postprocessing
+                                class BufSample:
+                                    def __init__(self, x, fval, probability):
+                                        self.x = x
+                                        self.fval = fval
+                                        self.probability = probability
+
+                                class BufResponse:
+                                    def __init__(self, samples):
+                                        self.samples = samples
+
+                                buf_samples = []
+                                for s in min_state_buffer['samples']:
+                                    # samples store x as list LSB-first, convert to array-like
+                                    buf_samples.append(BufSample(s['x'], s['fval'], s['probability']))
+
+                                buf_resp = BufResponse(buf_samples)
+                                # call postprocessing that handles qiskit readout-style results
+                                Postprocessing.postprocess_qiskit_with_readout(buf_resp, card, pred, pred_sel, card_dict=None, scale=1000, opt_time_ms=0.0)
+                            except Exception:
+                                pass
             else:
-                        response,init_point, used_eval = solve_with_QAOA(qubo, iterations, use_local_simulator=True,result_dir=result_dir,reps=TAG,
+                        response,init_point, used_eval, min_state_buffer = solve_with_QAOA(qubo, iterations, use_local_simulator=True,result_dir=result_dir,reps=TAG,
                                                                          card=card, pred=pred, pred_sel=pred_sel, thres=thres[i],inputNumber=i)
                         result_path_prefix = f'ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data'
+                        # If min_state_buffer exists, write a CSV of bitstring/energy/prob for later analysis
+                        if min_state_buffer is not None:
+                            try:
+                                out_dir = result_dir
+                                os.makedirs(out_dir, exist_ok=True)
+                                out_path = os.path.join(out_dir, 'min_state_readout.csv')
+                                with open(out_path, 'w', newline='') as fout:
+                                    w = csv.writer(fout)
+                                    w.writerow(['bitstring', 'energy', 'prob'])
+                                    for s in min_state_buffer['samples']:
+                                        bitlist = s['x']
+                                        bitstring = ''.join(str(int(b)) for b in bitlist)
+                                        w.writerow([bitstring, s['fval'], s['probability']])
+                            except Exception:
+                                pass
         #     for cumulative_iters in range(step, iterations + 1, step):
         #         currentPath = f'{curentWeek}/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/checkpoint{cumulative_iters}'
         #         result_dir = os.path.join(
