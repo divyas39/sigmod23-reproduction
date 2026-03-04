@@ -29,11 +29,11 @@ def parse_QPU_data(include_header=True,currentInput=0):
     else:
         result_path_prefix = 'ExperimentalAnalysis/IBMQ/QPUPerformance/Results/Collected_Data/'
         
-    iterations_categories = [1000]
+    iterations_categories = [10000]
     thres_vals = {0:range(0, 301),1:range(0, 301),2:range(0, 301), 3: [10]}
     
     for iterations in iterations_categories:
-        for i in range(3):
+        for i in range(1):
 
             card, pred, pred_sel = ProblemGenerator.get_join_ordering_problem('base/ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/JSON/' + str(i) + '_predicates', generated_problems=False)
             response = IBMQExperiments.load_pickled_result(result_path_prefix + '/' + str(iterations) + '_Iterations/' + str(i) + '_predicates')
@@ -45,7 +45,7 @@ if __name__ == '__main__':
     processing = config.configuration["ibmq-processing"]
     thre=[[150, 200, 300],[160, 200, 240, 280],[120, 150, 180, 220, 260, 300]]
     result_path_prefix = 'base/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/'
-    response = IBMQExperiments.load_pickled_result(result_path_prefix + '/' + str(1) + '_Iterations/' + str(0) + '_predicates-newQUBO')
+    response = IBMQExperiments.load_pickled_result(result_path_prefix + '/' + str(10000) + '_Iterations/' + str(0) + '_predicates-newQUBO')
     card, pred, pred_sel = ProblemGenerator.get_join_ordering_problem('base/ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/JSON/' + str(0) + '_predicates', generated_problems=False)
     
     out_path = Path("postprocess_output.txt")
@@ -57,13 +57,13 @@ if __name__ == '__main__':
     out_path = "readout_summary_bitstring_energy_prob.csv"
     # Postprocessing.postprocess_IBMQ_response(response, card, pred, pred_sel,[150])
 
-    Postprocessing.write_bitstring_energy_prob(response, out_path)
+    # Postprocessing.write_bitstring_energy_prob(response, out_path)
 
     # Postprocessing1.readout(response, card, pred, pred_sel, card_dict=None)
 
 
     # Postprocessing.write_bitstring_energy_prob(response,card, pred, pred_sel)
-    # Postprocessing.postprocess_qiskit_with_readout(response, card, pred, pred_sel)
+    Postprocessing.postprocess_qiskit_with_readout(response, card, pred, pred_sel)
 
 
     # out_path = "ising_hamiltonian.txt"

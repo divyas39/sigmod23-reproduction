@@ -159,7 +159,7 @@ def get_IBMQ_QASM_backend():
 # Returns a local simulator backend for testing the implementation
 def get_local_QASM_backend():
     backend = QasmSimulator()
-    quantum_instance = QuantumInstance(backend=backend)
+    quantum_instance = QuantumInstance(backend=backend,shots=10240)
     return quantum_instance
 
 def get_IBMQ_backend():
@@ -194,13 +194,13 @@ def solve_with_QAOA(qubo, iterations, reps=TAG, use_local_simulator=False,result
     last_params = {"val": None}
     last_eval = {"val": 0}
 
-    checkpoint_shots = 128
+    # checkpoint_shots = 128
 
 
-    checkpoint_backend = QasmSimulator(seed_simulator=12345)
-    checkpoint_qi = QuantumInstance(backend=checkpoint_backend, shots=checkpoint_shots)
-    op, _ = qubo.to_ising()
-    checkpoint_ansatz = QAOAAnsatz(op, reps).decompose()
+    # checkpoint_backend = QasmSimulator(seed_simulator=12345)
+    # checkpoint_qi = QuantumInstance(backend=checkpoint_backend, shots=checkpoint_shots)
+    # op, _ = qubo.to_ising()
+    # checkpoint_ansatz = QAOAAnsatz(op, reps).decompose()
 
     min_order, alt_min_order, _ = Postprocessing.get_optimal_join_order(card, pred, pred_sel)
     def _ensure_header(path, header):
@@ -350,7 +350,7 @@ def conduct_IBMQ_QPU_experiments():
         IBMQ.save_account(token)
         IBMQ.load_account()
     
-    iterations_categories = [1]
+    iterations_categories = [10000]
     thres = {0:[150],1:[200],2:[300]}
     num_decimal_pos = 3
     optimal_solution = 0
@@ -496,7 +496,7 @@ def parse_QPU_data(include_header=True,currentInput=0):
     else:
         result_path_prefix = 'ExperimentalAnalysis/IBMQ/QPUPerformance/Results/Collected_Data/'
         
-    iterations_categories = [1]
+    iterations_categories = [10000]
     thres_vals = {0:[150],1:[200],2:[300], 3: [10]}
     
     for iterations in iterations_categories:
@@ -593,6 +593,7 @@ if __name__ == '__main__':
     processing = config.configuration["ibmq-processing"]
     if processing != "collected":
         conduct_IBMQ_QPU_experiments()
-
+    
+    # Postprocessing.write_bitstring_energy_prob(response, out_path)
     # parse_QPU_data()
 

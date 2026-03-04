@@ -120,8 +120,9 @@ def readout(response, card, pred, pred_sel, card_dict):
         energy = solution[2]
         occ=solution[1]
         stringbit=solution[3]
+        probability=solution[4]
         for _ in range(occ):
-            bitstrings.append((bit,energy,stringbit,occ))
+            bitstrings.append((bit,energy,stringbit,occ,probability))
             # bitstrings.append(solution[0])
             
             
@@ -136,7 +137,7 @@ def readout(response, card, pred, pred_sel, card_dict):
     num_relations = len(card)
     
     for i in range(len(bitstrings)):
-        bitstring,energy,stringbit,occ = bitstrings[i]
+        bitstring,energy,stringbit,occ,probability = bitstrings[i]
         
         bitstring = bitstring[:len(card)*(len(card)-2)]
         partial_bitstrings = np.array_split(bitstring, len(card))
@@ -148,7 +149,7 @@ def readout(response, card, pred, pred_sel, card_dict):
         
         costs = get_costs_for_leftdeep_tree(raw_join_order, card, pred, pred_sel, card_dict)
         
-        solution = [stringbit,raw_join_order, int(costs), (time.time()-start)*1000, False,energy,occ]
+        solution = [stringbit,raw_join_order, int(costs), (time.time()-start)*1000, False,energy,occ,probability]
         solutions.append(solution)
         if costs < best_costs:
             best_costs = costs
@@ -157,7 +158,7 @@ def readout(response, card, pred, pred_sel, card_dict):
         # Fallback
         join_order = postprocess_join_order(raw_join_order, cost_vector, num_relations, pred)
         costs = get_costs_for_leftdeep_tree(join_order, card, pred, pred_sel, card_dict)
-        solution = [stringbit,join_order, int(costs), (time.time()-start)*1000, True,energy,occ]
+        solution = [stringbit,join_order, int(costs), (time.time()-start)*1000, True,energy,occ,probability]
         solutions.append(solution)
         if costs < best_costs:
             best_costs = costs

@@ -9,7 +9,7 @@ cd base
 
 echo "Started running IBMQ experiments..."
 
-for opt in 0; do          
+for opt in 1; do          
   for reps in 2; do       
     for trial in 1; do 
       echo "Running trial=${trial}, reps=${reps}, optimizer=${opt}"

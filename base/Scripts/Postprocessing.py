@@ -251,7 +251,7 @@ def callBackEnergy(iterations=-1,current_optim="invalid",TAG=-1,TRIAL_ID=-1):
                     writer.writerow(["index","bitstring","energy","prob"])
                     for idx, s in enumerate(response.samples):
                         bitstring = "".join(str(int(b)) for b in s.x)
-                        s.probability*1024
+                        s.probability*10240
                         energy=s.fval
                         writer.writerow([idx, bitstring,energy,probability])
 
@@ -273,7 +273,7 @@ def postprocess_qiskit_with_readout(
     trial_id = 4
     tag = 4
     current_optim = 0
-    iterations = 1000
+    iterations = 10000
     result_dir = os.path.join(base_dir, f"iterations_{iterations}", f"reps_{tag}", f"{current_optim}", f"bitstring_{trial_id}")
     os.makedirs(result_dir, exist_ok=True)
     csv_path = os.path.join(result_dir, "readout_summary.csv")
@@ -281,10 +281,11 @@ def postprocess_qiskit_with_readout(
     solutions = []
     for s in qaoa_result.samples:
         bitlist = [int(b) for b in s.x]
-        occ = round(s.probability*1024)
+        occ = round(s.probability*10240)
         energy = float(s.fval)
         stringbit="".join(str(int(b)) for b in s.x)
-        solutions.append([bitlist, occ, energy,stringbit])
+        probability=s.probability
+        solutions.append([bitlist, occ, energy,stringbit,probability])
 
     response_like = [solutions, float(opt_time_ms)]
     best_for_time, all_solutions = PS1.readout(response_like, card, pred, pred_sel, card_dict)
@@ -293,18 +294,20 @@ def postprocess_qiskit_with_readout(
         w = csv.writer(f)
 
         w.writerow(["# best_solutions_for_time"])
-        w.writerow(["bitstring","rank", "join_order", "cost", "time_ms", "used_fallback","energy","count"])
+        w.writerow(["bitstring","rank", "join_order", "cost", "time_ms", "used_fallback","energy","count","probability"])
         for idx, sol in enumerate(best_for_time):
-            bitstring,join_order, cost, t_ms, used_fallback,energy,occ = sol
-            w.writerow([bitstring,idx, join_order, cost, t_ms, used_fallback,energy,occ])
+            bitstring,join_order, cost, t_ms, used_fallback,energy,occ,probability = sol
+            w.writerow([bitstring,idx, join_order, cost, t_ms, used_fallback,energy,occ,probability])
 
         w.writerow([])
 
         w.writerow(["# all_solutions"])
-        w.writerow(["bitstring","index", "join_order", "cost", "time_ms", "used_fallback","energy","count"])
+        w.writerow(["bitstring","index", "join_order", "cost", "time_ms", "used_fallback","energy","count","probability"])
         for idx, sol in enumerate(all_solutions):
-            bitstring,join_order, cost, t_ms, used_fallback,energy,occ = sol
-            w.writerow([bitstring,idx, join_order, cost, t_ms, used_fallback,energy,occ])
+            bitstring,join_order, cost, t_ms, used_fallback,energy,occ,probability = sol
+            w.writerow([bitstring,idx, join_order, cost, t_ms, used_fallback,energy,occ,probability])
+
+        print(f"sive to /{result_dir}/readout_summary.csv")
 
     return best_for_time, all_solutions
 
