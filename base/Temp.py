@@ -127,8 +127,7 @@ def batch_run_callback_history_and_postprocess(
     iterations=10000,
     input_id=0
 ):
-    """
-    """
+   
     results = []
 
     for item in callback_history:

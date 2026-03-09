@@ -29,9 +29,7 @@ cost_energy_plot <- function(file_path, weighted_points = TRUE,targetCol="cost")
   if (!("probability" %in% names(df)) && ("prob" %in% names(df))) {
     df <- df %>% rename(probability = prob)
   }
-  if (!("probability" %in% names(df))) {
-    df <- df %>% mutate(probability = 1)
-  }
+
 
   if (!all(c("energy", targetCol) %in% names(df))) {
     stop("not energy or cost")
@@ -41,7 +39,7 @@ cost_energy_plot <- function(file_path, weighted_points = TRUE,targetCol="cost")
     mutate(
       energy = as.numeric(energy),
       cost = as.numeric(.data[[targetCol]]),
-      probability = as.numeric(probability),
+      probability = as.numeric(count),
       cost = factor(cost, levels = sort(unique(cost))) 
     ) %>%
     filter(is.finite(energy), is.finite(probability), probability >= 0)
@@ -68,13 +66,30 @@ cost_energy_plot <- function(file_path, weighted_points = TRUE,targetCol="cost")
 ```
 
 ```{r,echo=FALSE}
-cost_energy_boxplot_prob <- function(file_path, show_points = TRUE,targetCol="cost",thresh="()",opt="") {
+cost_energy_boxplot_prob <- function(file_path, show_points = TRUE,targetCol="cost",thresh="()",opt="",fallback=FALSE) {
   library(readr)
   library(dplyr)
   library(tidyr)
   library(ggplot2)
+  
+  lines <- readLines(file_path, warn = FALSE)
+  start_idx <- grep("^#\\s*all_solutions\\s*$", lines)
 
-  df <- read_csv(file_path, show_col_types = FALSE)
+  if (length(start_idx) == 0) {
+    stop("no # all_solution find")
+  }
+
+  all_lines <- lines[(start_idx + 1):length(lines)]
+  all_lines <- all_lines[all_lines != ""]
+
+  df <- read_csv(
+    I(paste(all_lines, collapse = "\n")),
+    show_col_types = FALSE
+  )
+
+  
+ ## df <- read_csv(file_path, show_col_types = FALSE, text = paste(all_lines, collapse = "\n"),
+## stringsAsFactors = FALSE)
 
   if (!("probability" %in% names(df)) && ("prob" %in% names(df))) {
     df <- df %>% rename(probability = prob)
@@ -82,11 +97,12 @@ cost_energy_boxplot_prob <- function(file_path, show_points = TRUE,targetCol="co
 
   df <- df %>%
     transmute(
+      used_fallback=as.logical(used_fallback),
       cost = as.numeric(.data[[targetCol]]),
       energy = as.numeric(energy),
       probability = as.numeric(probability)
     ) %>%
-    filter(is.finite(energy), is.finite(probability), probability > 0)
+    filter(is.finite(energy), probability > 0,used_fallback == fallback)
 
   w0 <- min(df$probability)
   df_exp <- df %>%
@@ -97,7 +113,7 @@ cost_energy_boxplot_prob <- function(file_path, show_points = TRUE,targetCol="co
     geom_boxplot() +
     theme_bw() +
     labs(x = targetCol, y = "Energy",
-         title = glue("Energy vs {targetCol}; thres: {thresh};opt:{opt} "))
+         title = glue("Energy vs {targetCol}; thres: {thresh};opt:{opt}; used_fallback={fallback} "))
 
   if (show_points) {
     br <- sort(unique(df$probability))
@@ -110,11 +126,20 @@ cost_energy_boxplot_prob <- function(file_path, show_points = TRUE,targetCol="co
       ) +
       scale_size_continuous(breaks = br, labels = br, name = "probability")
   }
-
+  cost_counts <- df %>%
+  count(cost, name = "n_rows") %>%
+  mutate(pct = n_rows / sum(n_rows)) %>%
+  arrange(cost)
+  print(glue("Matrix for used_fallback={fallback}"))
+  print(cost_counts)
   print(p)
-}
+
+return(cost_counts[cost_counts$cost == 15, ]$pct)
+  }
 
 ```
+
+
 
 ```{r}
 cost_energy_boxplot_prob_noweight <- function(file_path, show_points = TRUE,targetCol="cost",thresh="()",opt="") {
@@ -148,6 +173,7 @@ cost_energy_boxplot_prob_noweight <- function(file_path, show_points = TRUE,targ
     labs(x = targetCol, y = "Energy",
          title = glue("Energy vs {targetCol}; thres: {thresh};opt:{opt} "))
   print(p)
+   
 }
 ```
 
@@ -201,4 +227,41 @@ for (opt in c("AQGD","COBYLA","SPSA")) {
 
 }
 ```
+```{r}
+
+res <- cost_energy_boxplot_prob(glue("/Users/ruokun/Desktop/Project/Week14/readout_summary.csv"),targetCol="cost",thresh=150,opt="AQGD",fallback = FALSE)
+    print(glue("optimizerAQGE; input thres:150; costType:cost"))
+    
+res <- cost_energy_boxplot_prob(glue("/Users/ruokun/Desktop/Project/Week14/readout_summary.csv"),targetCol="cost",thresh=150,opt="AQGD",fallback = TRUE)
+    print(glue("optimizerAQGE; input thres:150; costType:cost"))
+```
+```{r}
+res <- cost_energy_boxplot_prob(glue("/Users/ruokun/Desktop/Project/Week14/readout_summary10000.csv"),targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE)
+    print(glue("optimizerAQGE; input thres:150; costType:cost"))
+    
+res <- cost_energy_boxplot_prob(glue("/Users/ruokun/Desktop/Project/Week14/readout_summary10000.csv"),targetCol="cost",thresh=150,opt="COBYLA",fallback = TRUE)
+    print(glue("optimizerAQGE; input thres:150; costType:cost"))
+```
+
+```{r}
+res_list=list()
+for (i in 1:62) {
+  path=glue("/Users/ruokun/Desktop/Project/Week15/readout_summary_eval{i}.csv")
+
+  # res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE)
+  #   print(glue("optimizerAQGE; input thres:150; costType:cost"))
+    
+res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = TRUE)
+    print(glue("optimizerAQGE; input thres:150; costType:cost"))
+res_list[[i]]<- res
+}
+res_list
+plot(x=(1:62),y=res_list,type = "l")
+```
+
+
+
+
+
+
 
