@@ -303,29 +303,26 @@ def solve_with_QAOA(qubo, iterations, reps=TAG, use_local_simulator=False,result
                     if is_opt == 1:
                         wo.writerow(row_vo)
 
-    def callback(eval_count, parameters, mean, stddev):
+    def callback(eval_count, parameters, mean, metadata):
 
         
-        try:
-            energy_value = float(np.real(mean))
-        except Exception:
-            energy_value = float(np.mean(mean))  
-        energies.append((eval_count, energy_value))
-
+        energy_value = float(np.real(mean))
+        energies.append((eval_count, energy_value,parameters,metadata))
         last_params['val']=list(parameters)
         last_eval['val']=int(eval_count)
         # _run_checkpoint(eval_count, parameters)
 
 
     if(optmi==1):
-        optimizer=COBYLA(maxiter=iterations)
+        ## increase rhobeg from 1 to 3, decrease to to 1e-8
+        optimizer=COBYLA(maxiter=iterations,rhobeg=2.0,tol=1e-6,disp=True)
     elif(optmi==2):
         optimizer=SPSA(maxiter=iterations)
     else:
         optimizer = AQGD(maxiter=iterations,eta=0.01)
     initial_point=[0., 0.]
     if TAG==2:
-            initial_point=[1., 2., 3., 4.]
+            initial_point=[0.5, 0.5, 0.5, 0.5]
     if TAG==3:
             initial_point=[0., 0., 0., 0.,0.,0.]
     qaoa_meas = QAOA(optimizer=optimizer, quantum_instance=quantum_instance, reps=reps, initial_point=initial_point,callback=callback)
@@ -334,7 +331,7 @@ def solve_with_QAOA(qubo, iterations, reps=TAG, use_local_simulator=False,result
 
     with open(energy_log_path, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["iteration", "energy"])
+        writer.writerow(["iteration", "energy","paramter","std"])
         writer.writerows(energies)
     
     final_point = last_params["val"] if last_params["val"] is not None else initial_point

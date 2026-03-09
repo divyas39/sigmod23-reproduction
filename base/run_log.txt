@@ -1,0 +1,11 @@
+Card:
+[1.0, 1.176, 1.301]
+Pred sel:
+[-1.0]
+Vanilla penalty weight: 1
+Saving ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/10000_Iterations/0_predicates-newQUBO
+
+   Normal return from subroutine COBYLA
+
+   NFVALS =   62   F =-6.698035E+00    MAXCV = 0.000000E+00
+   X = 3.633327E+00  -9.185182E-01  -2.538053E-01   1.520183E-01
