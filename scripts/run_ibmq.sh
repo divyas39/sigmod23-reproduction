@@ -13,7 +13,7 @@ for opt in 1; do
   for reps in 2; do       
     for trial in 1; do 
       echo "Running trial=${trial}, reps=${reps}, optimizer=${opt}"
-      python3 IBMQExperiments.py \
+      python3 IBMQExperiments.py  > run_log.txt 2>&1 \
         --trial "${trial}" \
         --reps "${reps}" \
         --optimizer "${opt}"
