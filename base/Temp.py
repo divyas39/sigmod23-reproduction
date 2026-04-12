@@ -21,6 +21,7 @@ import Scripts.Postprocessing1 as PS1
 from qiskit.providers.aer import QasmSimulator
 from qiskit.utils import QuantumInstance
 import re
+from qiskit.algorithms import NumPyMinimumEigensolver
 
 def parse_QPU_data(include_header=True,currentInput=0):
     if include_header:
@@ -61,7 +62,7 @@ def run_callback_parameter_simulation_and_postprocess(
     quantum_instance=None,
     shots=10240,
     opt_time_ms=0.0,
-    base_dir="./Week14/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
+    base_dir="./Week21/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
     trial_id=4,
     tag=4,
     current_optim="COBYLA",
@@ -120,7 +121,7 @@ def batch_run_callback_history_and_postprocess(
     quantum_instance=None,
     shots=10240,
     opt_time_ms=0.0,
-    base_dir="./Week14/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
+    base_dir="./Week21/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
     trial_id=4,
     tag=4,
     current_optim="COBYLA",
@@ -175,7 +176,7 @@ def postprocess_callback_execute_with_readout(
     PS1,
     card_dict=None,
     opt_time_ms=0.0,
-    base_dir="./Week14/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
+    base_dir="./Week21/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
     trial_id=4,
     tag=4,
     current_optim="COBYLA",
@@ -191,7 +192,7 @@ def postprocess_callback_execute_with_readout(
         f"iterations_{iterations}",
         f"reps_{tag}",
         f"{current_optim}",
-        f"input{input_id}"
+        f"input0"
     )
     os.makedirs(result_dir, exist_ok=True)
     print('Save to'+result_dir)
@@ -294,22 +295,24 @@ if __name__ == '__main__':
     result_path_prefix = 'base/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/'
     response = IBMQExperiments.load_pickled_result(result_path_prefix + '/' + str(10000) + '_Iterations/' + str(0) + '_predicates-newQUBO')
     card, pred, pred_sel = ProblemGenerator.get_join_ordering_problem('base/ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/JSON/' + str(0) + '_predicates', generated_problems=False)
-    qubo, penalty_weight=QUBOGenerator1.generate_IBMQ_QUBO_for_left_deep_trees(card, pred, pred_sel, 150, 3)
-    res=convert_callback_csv_to_history('base/week14/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_2/COBYLA/input0/energy_per_iteration_10000_COBYLA_2_1.csv')
+    qubo, penalty_weight=QUBOGenerator1.generate_IBMQ_QUBO_for_left_deep_trees_v2(card, pred, pred_sel)
 
+    res=convert_callback_csv_to_history('base/week21/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_2/COBYLA/input0/energy_per_iteration_10000_COBYLA_2_1.csv')
 
+    ## get res for each iteration
 
     batch_run_callback_history_and_postprocess(res,qubo=qubo,card=card,pred=pred,pred_sel=pred_sel,PS1=PS1,reps=2)
     
 
-    out_path = Path("postprocess_output.txt")
-    with open(out_path, "w", encoding="utf-8") as f:
-        f.write(str(response))
+    # out_path = Path("postprocess_output.txt")
+    # with open(out_path, "w", encoding="utf-8") as f:
+    #     f.write(str(response))
     
 
-    print(f"Saved postprocess output to {out_path.resolve()}")
+    # print(f"Saved postprocess output to {out_path.resolve()}")
 
-    out_path = "readout_summary_bitstring_energy_prob.csv"
+    # out_path = "readout_summary_bitstring_energy_prob.csv"
+
     # Postprocessing.postprocess_IBMQ_response(response, card, pred, pred_sel,[150])
 
     # Postprocessing.write_bitstring_energy_prob(response, out_path)
@@ -319,7 +322,20 @@ if __name__ == '__main__':
 
     # Postprocessing.write_bitstring_energy_prob(response,card, pred, pred_sel)
 
+    ## for readout of final outputs
+
     Postprocessing.postprocess_qiskit_with_readout(response, card, pred, pred_sel)
+
+    op, offset = qubo.to_ising()
+
+    print(f"ising Hamiltonian is: {op}; with offset of {offset}")
+
+    solver = NumPyMinimumEigensolver()
+    result = solver.compute_minimum_eigenvalue(op)
+
+    print("minimum eigenvalue:", result.eigenvalue)
+    print("minimum eigenstate:", result.eigenstate)
+    print("minimum energy with offset:", result.eigenvalue.real + offset)
 
 
     # out_path = "ising_hamiltonian.txt"

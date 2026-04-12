@@ -1,11 +1,12 @@
 #!/bin/bash
 
 # in case the script is not started from within sigmod-repro directory
-if [ ! "${PWD}" = "/home/repro/sigmod-repro" ]; then
-    cd /home/repro/sigmod-repro/
-fi
 
-cd base
+# if [ ! "${PWD}" = "/home/repro/sigmod-repro" ]; then
+#     cd /home/repro/sigmod-repro/
+# fi
+
+cd /workspace/base
 
 echo "Started running IBMQ experiments..."
 
@@ -13,7 +14,7 @@ for opt in 1; do
   for reps in 2; do       
     for trial in 1; do 
       echo "Running trial=${trial}, reps=${reps}, optimizer=${opt}"
-      python3 IBMQExperiments.py  > run_log.txt 2>&1 \
+      python3 IBMQExperiments.py \
         --trial "${trial}" \
         --reps "${reps}" \
         --optimizer "${opt}"

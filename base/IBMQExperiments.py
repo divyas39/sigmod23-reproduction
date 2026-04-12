@@ -17,6 +17,7 @@ import csv
 import numpy as np
 import pickle
 from decimal import *
+import sys
 
 from qiskit.circuit.library.n_local.qaoa_ansatz import QAOAAnsatz
 import Scripts.QUBOGenerator1 as QUBOGenerator1
@@ -136,6 +137,8 @@ def get_tket_Rigetti_gateset_pass(restrict_to_native_gates):
 def get_QAOA_circuit(qubo):
     circuit = CircuitGenerator.create_QAOA_circuit(qubo)
     circuit = CircuitGenerator.decompose_circuit(circuit)
+    print("print number of quibits",circuit.num_qubits)
+    
     return circuit
 
 def determine_circuit_depth(qubo, coupling_map, tket_optimizer, optimization_level):
@@ -173,6 +176,7 @@ def get_IBMQ_backend():
     backend = provider.get_backend(ibmq_backend)
     quantum_instance = QuantumInstance(backend=backend)
     return quantum_instance
+
 
 def solve_with_QAOA(qubo, iterations, reps=TAG, use_local_simulator=False,result_dir="./9/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
                     card=None, pred=None, pred_sel=None, thres=None, inputNumber=0):
@@ -315,7 +319,10 @@ def solve_with_QAOA(qubo, iterations, reps=TAG, use_local_simulator=False,result
 
     if(optmi==1):
         ## increase rhobeg from 1 to 3, decrease to to 1e-8
-        optimizer=COBYLA(maxiter=iterations,rhobeg=2.0,tol=1e-6,disp=True)
+        optimizer=COBYLA(maxiter=iterations,rhobeg=2.0,tol=1e-12,disp=True)
+        ### 1e-10 if stop early try 1e-12. 
+        ### remember to print out op, _ = qubo.to_ising()
+        
     elif(optmi==2):
         optimizer=SPSA(maxiter=iterations)
     else:
@@ -354,17 +361,23 @@ def conduct_IBMQ_QPU_experiments():
     step=10
     
     for iterations in iterations_categories:
-        for i in range(1):
+        for i in range(0,1):
             init_point = None
             
 
             card, pred, pred_sel = ProblemGenerator.get_join_ordering_problem('ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/JSON/' + str(i) + '_predicates', generated_problems=False)
 
             # qubo, weight_a = QUBOGenerator.generate_QUBO_for_IBMQ(card, thres[i], num_decimal_pos, pred, pred_sel)
+            print("Generating qubo",flush=True)
 
-            qubo, penalty_weight=QUBOGenerator1.generate_IBMQ_QUBO_for_left_deep_trees(card, pred, pred_sel, thres[i][0], num_decimal_pos)
+            # qubo, penalty_weight=QUBOGenerator1.generate_IBMQ_QUBO_for_left_deep_trees(card, pred, pred_sel, thres[i][0], num_decimal_pos)
+
+            qubo, penalty_weight=QUBOGenerator1.generate_IBMQ_QUBO_for_left_deep_trees_v2(card, pred, pred_sel)
+
+
             # qubo = ProblemGenerator.get_join_ordering_qubo('ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/QUBO/' + str(i) + '_predicates')
-            curentWeek="week14"
+            check_qubit_from_qubo_and_exit(qubo, max_qubits=23)
+            curentWeek="week21"
             
             response = None
             currentPath = f'{curentWeek}/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data'
@@ -497,7 +510,7 @@ def parse_QPU_data(include_header=True,currentInput=0):
     thres_vals = {0:[150],1:[200],2:[300], 3: [10]}
     
     for iterations in iterations_categories:
-        for i in range(1):
+        for i in range(0,1):
 
             card, pred, pred_sel = ProblemGenerator.get_join_ordering_problem('ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/JSON/' + str(i) + '_predicates', generated_problems=False)
             response = load_pickled_result(result_path_prefix + '/' + str(iterations) + '_Iterations/' + str(i) + '_predicates')
@@ -505,7 +518,21 @@ def parse_QPU_data(include_header=True,currentInput=0):
             best_join_order, best_join_order_costs, valid_ratio, optimal_ratio = Postprocessing.postprocess_IBMQ_response(response, card, pred, pred_sel, thres_vals[i],trial_id1=TRIAL_ID,tag1=TAG,current_optim1=current_optim,iterations1=iterations,inputNumber=i)
             save_to_csv([iterations, i, get_rounded_val(valid_ratio), get_rounded_val(optimal_ratio)], 'ExperimentalAnalysis/IBMQ/QPUPerformance/Results', 'results.txt')
 
-            
+
+def check_qubit_from_qubo_and_exit(qubo, max_qubits=23):
+    try:
+        num_qubits = qubo.get_num_binary_vars()
+    except Exception:
+        num_qubits = len(qubo.variables)
+
+    print(f"[INFO] qubit number = {num_qubits}",flush=True)
+
+    if num_qubits > max_qubits:
+        print(f"[STOP] qubit number {num_qubits} > {max_qubits}, terminate script.")
+        sys.exit(0)
+
+    return num_qubits
+
 def parse_transpilation_data(optimizers, topologies, opt_levels, aggregate_results = False, include_header=True):
     if include_header:
         if aggregate_results:
@@ -526,7 +553,7 @@ def parse_transpilation_data(optimizers, topologies, opt_levels, aggregate_resul
      
     qubits = [18, 21, 24, 27]
     for optimizer in optimizers:
-        for i in range(1):
+        for i in range(0,1):
             for opt_level in opt_levels:
                 optimizer_string = None
                 samplesize = 0
@@ -589,6 +616,7 @@ if __name__ == '__main__':
 
     processing = config.configuration["ibmq-processing"]
     if processing != "collected":
+        print("COndu")
         conduct_IBMQ_QPU_experiments()
     
     # Postprocessing.write_bitstring_energy_prob(response, out_path)
