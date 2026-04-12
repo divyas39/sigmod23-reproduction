@@ -307,7 +307,7 @@ def postprocess_qiskit_with_readout(
             bitstring,join_order, cost, t_ms, used_fallback,energy,occ,probability = sol
             w.writerow([bitstring,idx, join_order, cost, t_ms, used_fallback,energy,occ,probability])
 
-        print(f"sive to /{result_dir}/readout_summary.csv")
+        print(f"save to /{result_dir}/readout_summary.csv")
 
     return best_for_time, all_solutions
 

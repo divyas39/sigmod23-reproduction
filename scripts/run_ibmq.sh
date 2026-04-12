@@ -17,7 +17,8 @@ for opt in 1; do
       python3 IBMQExperiments.py \
         --trial "${trial}" \
         --reps "${reps}" \
-        --optimizer "${opt}"
+        --optimizer "${opt}" \
+        > run_log.txt 2>&1
     done
   done
 done

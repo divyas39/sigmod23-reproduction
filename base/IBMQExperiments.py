@@ -350,6 +350,7 @@ def solve_with_QAOA(qubo, iterations, reps=TAG, use_local_simulator=False,result
     qaoa_result = qaoa.solve(qubo)
     # Prepare a checkpoint ansatz and quantum instance for later sampling of the best-found parameters
     try:
+        # hamiltonian - print 
         op, _ = qubo.to_ising()
         checkpoint_backend = QasmSimulator()
         checkpoint_qi = QuantumInstance(backend=checkpoint_backend, shots=10240)

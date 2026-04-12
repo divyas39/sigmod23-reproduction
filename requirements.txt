@@ -18,3 +18,7 @@ qubovert==1.2.4
 docplex==2.23.222
 gurobipy==10.0.1
 multiprocessing_on_dill==3.5.0a4
+qiskit-aer==0.13.3 # for SPIQ
+qiskit-algorithms==0.3.1
+qiskit-ibm-runtime==0.34.0
+scipy==1.10.1
