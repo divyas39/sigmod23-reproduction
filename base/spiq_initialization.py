@@ -23,7 +23,7 @@ from clapton.clapton import claptonize
 from clapton.depolarization import GateGeneralDepolarizationModel
 
 
-def build_problem(input_idx: int, threshold: int, num_decimal_pos: int = 3):
+def build_problem(input_idx: int):
     """
     Build the same QUBO instance style used by IBMQExperiments.py.
     """
@@ -199,8 +199,8 @@ def main():
     payload = {
         "input_idx": args.input_idx,
         "reps": args.reps,
-        "threshold": args.threshold,
-        "num_decimal_pos": args.num_decimal_pos,
+        # "threshold": args.threshold,
+        # "num_decimal_pos": args.num_decimal_pos,
         "n_gens": args.n_gens,
         "initial_point": result["initial_point"],
         "energy_best": result["energy_best"],
