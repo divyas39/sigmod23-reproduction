@@ -36,12 +36,10 @@ def build_problem(input_idx: int, threshold: int, num_decimal_pos: int = 3):
         generated_problems=False,
     )
 
-    qubo, penalty_weight = QUBOGenerator1.generate_IBMQ_QUBO_for_left_deep_trees(
+    qubo, penalty_weight = QUBOGenerator1.generate_IBMQ_QUBO_for_left_deep_trees_v2(
         card,
         pred,
-        pred_sel,
-        threshold,
-        num_decimal_pos,
+        pred_sel
     )
 
     return qubo, card, pred, pred_sel, penalty_weight
@@ -156,8 +154,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_idx", type=int, default=0, help="Problem index")
     parser.add_argument("--reps", type=int, default=1, help="QAOA reps / p")
-    parser.add_argument("--threshold", type=int, default=150, help="Threshold for QUBO generation")
-    parser.add_argument("--num_decimal_pos", type=int, default=3, help="Decimal precision")
+    # parser.add_argument("--threshold", type=int, default=150, help="Threshold for QUBO generation")
+    # parser.add_argument("--num_decimal_pos", type=int, default=3, help="Decimal precision")
     parser.add_argument("--n_gens", type=int, default=200, help="SPIQ generation budget")
     parser.add_argument("--n_proc", type=int, default=32, help="Number of processes for SPIQ")
     parser.add_argument("--n_starts", type=int, default=4, help="Number of SPIQ starts")
@@ -175,8 +173,6 @@ def main():
 
     qubo, card, pred, pred_sel, penalty_weight = build_problem(
         input_idx=args.input_idx,
-        threshold=args.threshold,
-        num_decimal_pos=args.num_decimal_pos,
     )
 
     out_file = os.path.join(
