@@ -1,3 +1,4 @@
+from __future__ import annotations
 # gate objects are ParametrizedClifford but cannot import as would cause cyclic import
 
 

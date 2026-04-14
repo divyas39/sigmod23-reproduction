@@ -1,3 +1,4 @@
+from __future__ import annotations
 import stim
 import numpy as np
 from copy import deepcopy

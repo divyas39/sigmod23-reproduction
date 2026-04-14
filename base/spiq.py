@@ -1,3 +1,4 @@
+from __future__ import annotations
 # function calls for running SPIQ/CAFQA and QAOA optimization, along with utilities for converting between representations and handling noise models.
 
 import warnings

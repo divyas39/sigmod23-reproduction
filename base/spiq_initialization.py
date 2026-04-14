@@ -17,6 +17,7 @@ from clapton.circuit_manipulation import (
     generate_qiskit_param_map,
     modify_circuit,
     qiskit_to_stim,
+    relax_qaoa_parameters,
     transform_to_allowed_gates,
 )
 from clapton.clapton import claptonize
@@ -27,8 +28,9 @@ def build_problem(input_idx: int):
     """
     Build the same QUBO instance style used by IBMQExperiments.py.
     """
-    json_path = (
-        f"ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/JSON/{input_idx}_predicates"
+    json_path = os.path.join(
+        os.path.dirname(__file__),
+        f"ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/JSON/{input_idx}_predicates",
     )
 
     card, pred, pred_sel = ProblemGenerator.get_join_ordering_problem(
@@ -47,23 +49,66 @@ def build_problem(input_idx: int):
 
 def build_vanilla_spiq_objects(qubo, reps: int):
     """
-    Create a vanilla QAOA ansatz and the stim circuit needed by SPIQ,
-    while preserving vanilla QAOA parameter count/order.
+    Create a QAOA ansatz and the stim circuit needed by SPIQ.
+    Parameters are relaxed (one per gate) so the stim 1-to-1 param map works.
+    Returns angle_multipliers so the caller can map back to vanilla QAOA.
     """
     op, _ = qubo.to_ising()
 
-    # Vanilla QAOA ansatz with 2 * reps parameters in Qiskit order
     qaoa_ansatz = QAOAAnsatz(op, reps=reps)
 
-    # because IBMQExperiments.py expects the vanilla QAOA initial point shape.
     modified_circ = modify_circuit(qaoa_ansatz)
     pcirc = transform_to_allowed_gates(modified_circ)
+    pcirc, _, angle_multipliers = relax_qaoa_parameters(pcirc)
 
     stim_circ = qiskit_to_stim(pcirc)
     param_map = generate_qiskit_param_map(pcirc)
     stim_circ.define_parameter_map(param_map)
 
-    return op, qaoa_ansatz, pcirc, stim_circ, param_map
+    return op, qaoa_ansatz, pcirc, stim_circ, param_map, angle_multipliers
+
+
+def _clifford_to_vanilla_initial_point(ks_best, pcirc, angle_multipliers, qaoa_ansatz):
+    """
+    Convert per-gate Clifford values from SPIQ back to a vanilla QAOA
+    initial point (2 * reps floats in qaoa_ansatz.parameters order).
+
+    Each relaxed param named '{mult}*gamma_N' or '{mult}*beta_N' implies
+    a vanilla angle theta = (k * pi/2) / mult. We average over all gates
+    that share the same type (gamma / beta) per QAOA rep.
+    """
+    ordered_names = [p.name for p in pcirc.parameters]
+
+    gamma_thetas = []
+    beta_thetas = []
+
+    for i, name in enumerate(ordered_names):
+        k = int(ks_best[i])
+        angle = k * np.pi / 2.0
+        mult = angle_multipliers.get(name, 1.0)
+        theta = angle / abs(mult) if mult != 0 else 0.0
+
+        if "gamma" in name:
+            gamma_thetas.append(theta)
+        elif "beta" in name:
+            beta_thetas.append(theta)
+
+    vanilla_params = qaoa_ansatz.parameters
+    reps = len(vanilla_params) // 2
+    gamma_avg = float(np.mean(gamma_thetas)) if gamma_thetas else 0.0
+    beta_avg = float(np.mean(beta_thetas)) if beta_thetas else 0.0
+
+    initial_point = []
+    for p in vanilla_params:
+        pname = p.name
+        if "\u03b3" in pname or "gamma" in pname.lower():
+            initial_point.append(gamma_avg)
+        elif "\u03b2" in pname or "beta" in pname.lower():
+            initial_point.append(beta_avg)
+        else:
+            initial_point.append(0.0)
+
+    return initial_point
 
 
 def run_spiq_initialization(
@@ -79,12 +124,12 @@ def run_spiq_initialization(
     """
     Run SPIQ/CAFQA and return an ordered Qiskit-compatible initial point.
     """
-    op, qaoa_ansatz, pcirc, stim_circ, param_map = build_vanilla_spiq_objects(
-        qubo, reps=reps
+    op, qaoa_ansatz, pcirc, stim_circ, param_map, angle_multipliers = (
+        build_vanilla_spiq_objects(qubo, reps=reps)
     )
 
-    paulis = op.paulis.to_labels()
-    coeffs = op.coeffs.real
+    paulis = op.primitive.paulis.to_labels()
+    coeffs = op.primitive.coeffs.real
     reversed_paulis = [p[::-1] for p in paulis]
 
     if err is not None:
@@ -109,28 +154,9 @@ def run_spiq_initialization(
         out_file=out_file,
     )
 
-    # Convert the best SPIQ assignment into an ordered list matching pcirc.parameters
-    initial_point = []
-    for qiskit_param in pcirc.parameters:
-        mapped_key = param_map.get(qiskit_param, qiskit_param)
-
-        if mapped_key in ks_best:
-            initial_point.append(float(ks_best[mapped_key]))
-            continue
-
-        if qiskit_param in ks_best:
-            initial_point.append(float(ks_best[qiskit_param]))
-            continue
-
-        found = False
-        for k, v in ks_best.items():
-            if str(k) == str(mapped_key) or str(k) == str(qiskit_param):
-                initial_point.append(float(v))
-                found = True
-                break
-
-        if not found:
-            raise KeyError(f"Could not map SPIQ parameter for {qiskit_param}")
+    initial_point = _clifford_to_vanilla_initial_point(
+        ks_best, pcirc, angle_multipliers, qaoa_ansatz
+    )
 
     expected_len = 2 * reps
     if len(initial_point) != expected_len:
@@ -144,9 +170,12 @@ def run_spiq_initialization(
         "energy_best": float(energy_best),
         "noisy_energy_best": None if noisy_energy_best is None else float(noisy_energy_best),
         "best_cafqa_gen_fitness": (
-            None if best_cafqa_gen_fitness is None else float(best_cafqa_gen_fitness)
+            None if best_cafqa_gen_fitness is None
+            else [float(v) for v in best_cafqa_gen_fitness]
+            if isinstance(best_cafqa_gen_fitness, (list, np.ndarray))
+            else float(best_cafqa_gen_fitness)
         ),
-        "ks_best_str": {str(k): float(v) for k, v in ks_best.items()},
+        "ks_best_raw": [int(k) for k in ks_best],
     }
 
 
@@ -206,7 +235,7 @@ def main():
         "energy_best": result["energy_best"],
         "noisy_energy_best": result["noisy_energy_best"],
         "best_cafqa_gen_fitness": result["best_cafqa_gen_fitness"],
-        "ks_best_str": result["ks_best_str"],
+        "ks_best_raw": result["ks_best_raw"],
         "spiq_trace_file": out_file,
     }
 

@@ -1,3 +1,4 @@
+from __future__ import annotations
 from clapton.clifford import ParametrizedCliffordCircuit
 from qiskit.circuit import QuantumCircuit, ParameterVector
 

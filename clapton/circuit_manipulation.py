@@ -1,3 +1,4 @@
+from __future__ import annotations
 from clapton.clifford import ParametrizedCliffordCircuit
 
 from qiskit.converters import circuit_to_dag, dag_to_circuit
@@ -190,43 +191,43 @@ def qiskit_to_stim(circuit):
     #     stim_circ.append("I", [i])
 
     # NOTE : You can optimize this code very easily
-    for instruction in circuit:
-        gate_lbl = instruction.operation.name.upper()
+    for gate, qubits, _clbits in circuit:
+        gate_lbl = gate.name.upper()
         if gate_lbl == "BARRIER" or gate_lbl == "MEASURE":
             continue
         elif gate_lbl in ["X", "Y", "Z", "H", "S"]:
             single_gate_dict = {"X": 1, "Y": 2, "Z": 3, "H": 4, "S": 8}
-            qb = instruction.qubits[0]._index
+            qb = qubits[0]._index
             stim_circ.C1(qb).fix(single_gate_dict[gate_lbl])
         elif gate_lbl == "CX":
-            control_qb = instruction.qubits[0]._index
-            target_qb = instruction.qubits[1]._index
+            control_qb = qubits[0]._index
+            target_qb = qubits[1]._index
             stim_circ.Q2(control_qb, target_qb).fix(1)
         elif gate_lbl == "SDG":
-            qb = instruction.qubits[0]._index
+            qb = qubits[0]._index
             stim_circ.RZ(qb).fix(3)
             gate_lbl = "S_DAG"
         elif gate_lbl == "SX":
-            qb = instruction.qubits[0]._index
+            qb = qubits[0]._index
             stim_circ.RX(qb).fix(1)
             gate_lbl = "SQRT_X"
         elif gate_lbl == "SXDG":
-            qb = instruction.qubits[0]._index
+            qb = qubits[0]._index
             stim_circ.RX(qb).fix(3)
             gate_lbl = "SQRT_X_DAG"
         elif gate_lbl == "RZ":
-            qb = instruction.qubits[0]._index
-            if isinstance(instruction.operation.params[0], ParameterExpression):
+            qb = qubits[0]._index
+            if isinstance(gate.params[0], ParameterExpression) and gate.params[0].parameters:
                 stim_circ.RZ(qb)  # keep it not fixed
                 gate_lbl = "Z"
             else:
-                angle = float(instruction.operation.params[0])
+                angle = float(gate.params[0])
                 gate_index = int((angle % (2 * np.pi)) // (np.pi / 2))
-                stim_circ.RZ(qb).fix(gate_index)  # NOTE: need to check
+                stim_circ.RZ(qb).fix(gate_index)
                 gate_lbl = ["I", "S", "Z", "S_DAG"][gate_index]
 
         assert gate_lbl in allowed_gates, f"Invalid gate {gate_lbl}."
-        # qubit_idc = [qb._index for qb in instruction.qubits]
+        # qubit_idc = [qb._index for qb in qubits]
         # stim_circ.append(gate_lbl, qubit_idc)
 
     return stim_circ
@@ -290,7 +291,9 @@ def generate_qiskit_param_map(circuit):
     param_list = [
         list(node.op.params[0].parameters)[0].name
         for node in dag.op_nodes()
-        if node.op.params and isinstance(node.op.params[0], ParameterExpression)
+        if node.op.params
+        and isinstance(node.op.params[0], ParameterExpression)
+        and node.op.params[0].parameters
     ]
     qiskit_param_map = {k: v for v, k in enumerate(param_list)}
 
@@ -307,7 +310,7 @@ def relax_qaoa_parameters(circ):
     gamma_counter, beta_counter = 0, 0
     angle_multipliers = {}
     for node in dag.op_nodes():
-        if node.op.params and isinstance(node.op.params[0], ParameterExpression):
+        if node.op.params and isinstance(node.op.params[0], ParameterExpression) and node.op.params[0].parameters:
             param_name = list(node.op.params[0].parameters)[0].name
             if "β" in param_name or "beta" in param_name:
 
