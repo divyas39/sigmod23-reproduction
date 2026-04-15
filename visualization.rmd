@@ -66,7 +66,44 @@ cost_energy_plot <- function(file_path, weighted_points = TRUE,targetCol="cost")
 ```
 
 ```{r,echo=FALSE}
-cost_energy_boxplot_prob <- function(file_path, show_points = TRUE,targetCol="cost",thresh="()",opt="",fallback=FALSE) {
+data_process <- function(file_path, output, num=0, keep_fallback = TRUE) {
+  library(readr)
+  library(dplyr)
+  library(glue)
+
+  lines <- readLines(file_path, warn = FALSE)
+  start_idx <- grep("^#\\s*all_solutions\\s*$", lines)
+
+  if (length(start_idx) == 0) {
+    stop("no # all_solutions found")
+  }
+
+  all_lines <- lines[(start_idx + 1):length(lines)]
+  all_lines <- all_lines[all_lines != ""]
+
+  df <- read_csv(
+    I(paste(all_lines, collapse = "\n")),
+    show_col_types = FALSE
+  )
+
+  process <- df
+
+  if (!is.null(keep_fallback)) {
+    process <- process %>%
+      arrange(bitstring, used_fallback != keep_fallback)
+  }
+
+  process <- process %>%
+    distinct(bitstring, .keep_all = TRUE) %>%
+    mutate(index = row_number())
+
+  write.csv(
+    process,
+    glue("{output}/processed/readout_summary_eval{num}.csv"),
+    row.names = FALSE
+  )
+}
+cost_energy_boxplot_prob <- function(file_path, show_points = TRUE,targetCol="cost",thresh="()",opt="",fallback=FALSE,target) {
   library(readr)
   library(dplyr)
   library(tidyr)
@@ -134,14 +171,134 @@ cost_energy_boxplot_prob <- function(file_path, show_points = TRUE,targetCol="co
   print(cost_counts)
   print(p)
 
-return(cost_counts[cost_counts$cost == 15, ]$pct)
+return(list(
+  cost_counts[cost_counts$cost == target, ]$pct
+))  }
+
+```
+
+```{r}
+cost_energy_boxplot_prob_cleaned <- function(file_path, show_points = TRUE,targetCol="cost",thresh="()",opt="",fallback=FALSE,target) {
+  library(readr)
+  library(dplyr)
+  library(tidyr)
+  library(ggplot2)
+  
+
+
+  df <- read_csv(
+   file_path
+  )
+
+  
+ ## df <- read_csv(file_path, show_col_types = FALSE, text = paste(all_lines, collapse = "\n"),
+## stringsAsFactors = FALSE)
+
+  if (!("probability" %in% names(df)) && ("prob" %in% names(df))) {
+    df <- df %>% rename(probability = prob)
   }
+
+  df <- df %>%
+    transmute(
+      used_fallback=as.logical(used_fallback),
+      cost = as.numeric(.data[[targetCol]]),
+      energy = as.numeric(energy),
+      probability = as.numeric(probability)
+    ) %>%
+    filter(is.finite(energy), probability > 0,used_fallback == fallback)
+
+  w0 <- min(df$probability)
+  df_exp <- df %>%
+    mutate(w = pmax(1L, round(probability / w0))) %>%
+    uncount(w)
+
+  p <- ggplot(df_exp, aes(x = factor(cost), y = energy)) +
+    geom_boxplot() +
+    theme_bw() +
+    labs(x = targetCol, y = "Energy",
+         title = glue("Energy vs {targetCol}; thres: {thresh};opt:{opt}; used_fallback={fallback} "))
+
+  if (show_points) {
+    br <- sort(unique(df$probability))
+    p <- p +
+      geom_point(
+        data = df,
+        aes(size = probability),
+        alpha = 0.5,
+        position = position_jitter(width = 0.15, height = 0)
+      ) +
+      scale_size_continuous(breaks = br, labels = br, name = "probability")
+  }
+  cost_counts <- df %>%
+  count(cost, name = "n_rows") %>%
+  mutate(pct = n_rows / sum(n_rows)) %>%
+  arrange(cost)
+  print(glue("Matrix for used_fallback={fallback}"))
+  print(cost_counts)
+  print(p)
+
+return(list(
+  cost_counts[cost_counts$cost == target, ]$pct
+))  }
+```
+
+
+```{r}
+plot_energy_from_csv <- function(file_path, baseline = NULL) {
+  df <- read.csv(file_path, stringsAsFactors = FALSE)
+  energy <- df$energy
+  
+  y_limits <- if (!is.null(baseline)) {
+    range(c(energy, baseline), na.rm = TRUE)
+  } else {
+    range(energy, na.rm = TRUE)
+  }
+  
+  if ("iteration" %in% colnames(df)) {
+    plot(
+      df$iteration, energy,
+      type = "b",
+      pch = 19,
+      xlab = "Iteration",
+      ylab = "Energy",
+      main = "Energy over Iteration",
+      ylim = y_limits
+    )
+  } else {
+    plot(
+      seq_along(energy), energy,
+      type = "b",
+      pch = 19,
+      xlab = "Index",
+      ylab = "Energy",
+      main = "Energy",
+      ylim = y_limits
+    )
+  }
+  
+  if (!is.null(baseline)) {
+    abline(h = baseline, col = "red", lty = 2, lwd = 2)
+    legend(
+      "topright",
+      legend = c("Energy", "Baseline"),
+      col = c("black", "red"),
+      lty = c(1, 2),
+      pch = c(19, NA),
+      bty = "n"
+    )
+  }
+  
+  return(energy)
+}
+
 
 ```
 
 
 
+
 ```{r}
+
 cost_energy_boxplot_prob_noweight <- function(file_path, show_points = TRUE,targetCol="cost",thresh="()",opt="") {
   library(readr)
   library(dplyr)
@@ -243,9 +400,23 @@ res <- cost_energy_boxplot_prob(glue("/Users/ruokun/Desktop/Project/Week14/reado
     print(glue("optimizerAQGE; input thres:150; costType:cost"))
 ```
 
+
 ```{r}
-res_list=list()
-for (i in 1:62) {
+for( i in 1:63){
+  path=glue("/Users/ruokun/Desktop/Project/Week15/readout_summary_eval{i}.csv")
+  output=glue("/Users/ruokun/Desktop/Project/Week15")
+  data_process(path,output,i)
+}
+```
+
+
+```{r}
+res_list1=list()
+res_list2=list()
+res_list3=list()
+
+
+for (i in 1:63) {
   path=glue("/Users/ruokun/Desktop/Project/Week15/readout_summary_eval{i}.csv")
 
   # res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE)
@@ -253,15 +424,374 @@ for (i in 1:62) {
     
 res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = TRUE)
     print(glue("optimizerAQGE; input thres:150; costType:cost"))
-res_list[[i]]<- res
+res_list1[[i]]<- res[[1]]
+res_list2[[i]]<- res[[2]]
+res_list3[[i]]<- res[[3]]
+
+}
+plot(x=(1:63),y=res_list1,type = "b",xlab = " iteration",ylab = "ratio of join order with cost=15(optimal)")
+plot(x=(1:63),y=res_list2,type = "b",xlab = " iteration",ylab = "ratio of join order with cost=200")
+plot(x=(1:63),y=res_list3,type = "b",xlab = " iteration",ylab = "ratio of join order with cost=300(worst)")
+
+
+```
+
+```{r}
+res_list1=list()
+res_list2=list()
+res_list3=list()
+
+
+for (i in 1:63) {
+  path=glue("/Users/ruokun/Desktop/Project/Week15/readout_summary_eval{i}.csv")
+
+  # res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE)
+  #   print(glue("optimizerAQGE; input thres:150; costType:cost"))
+    
+res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = F)
+    print(glue("optimizerAQGE; input thres:150; costType:cost"))
+res_list1[[i]]<- res[[1]]
+res_list2[[i]]<- res[[2]]
+res_list3[[i]]<- res[[3]]
+
 }
 res_list
-plot(x=(1:62),y=res_list,type = "l")
+plot(x=(1:63),y=res_list1,type = "b",xlab = " iteration",ylab = "ratio of join order with cost=15(optimal)")
+plot(x=(1:63),y=res_list2,type = "b",xlab = " iteration",ylab = "ratio of join order with cost=200")
+plot(x=(1:63),y=res_list3,type = "b",xlab = " iteration",ylab = "ratio of join order with cost=300(worst)")
+```
+
+
+```{r}
+for( i in 1:114){
+  path=glue("/Users/ruokun/Desktop/Project/Week17/readout_summary_eval{i}.csv")
+  output=glue("/Users/ruokun/Desktop/Project/Week17")
+  data_process(path,output,i)
+}
+```
+
+
+```{r}
+res_list1=list()
+res_list2=list()
+res_list3=list()
+
+
+for (i in 1:101) {
+  path=glue("/Users/ruokun/Desktop/Project/Week16/readout_summary_eval{i}.csv")
+
+  # res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE)
+  #   print(glue("optimizerAQGE; input thres:150; costType:cost"))
+    
+res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = F)
+    print(glue("optimizerAQGE; input thres:150; costType:cost"))
+res_list1[[i]]<- res[[1]]
+res_list2[[i]]<- res[[2]]
+res_list3[[i]]<- res[[3]]
+
+}
+
+plot(x=(1:101),y=res_list1,type = "b",xlab = " iteration",ylab = "ratio of join order with cost=15(optimal)")
+plot(x=(1:101),y=res_list2,type = "b",xlab = " iteration",ylab = "ratio of join order with cost=200")
+plot(x=(1:101),y=res_list3,type = "b",xlab = " iteration",ylab = "ratio of join order with cost=300(worst)")
+```
+
+```{r}
+res_list1=list()
+res_list2=list()
+res_list3=list()
+
+
+for (i in 1:101) {
+  path=glue("/Users/ruokun/Desktop/Project/Week16/readout_summary_eval{i}.csv")
+
+  # res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE)
+  #   print(glue("optimizerAQGE; input thres:150; costType:cost"))
+    
+res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = T)
+    print(glue("optimizerAQGE; input thres:150; costType:cost"))
+res_list1[[i]]<- res[[1]]
+res_list2[[i]]<- res[[2]]
+res_list3[[i]]<- res[[3]]
+
+}
+
+plot(x=(1:101),y=res_list1,type = "b",xlab = " iteration",ylab = "ratio of join order with cost=15(optimal)")
+plot(x=(1:101),y=res_list2,type = "b",xlab = " iteration",ylab = "ratio of join order with cost=200")
+plot(x=(1:101),y=res_list3,type = "b",xlab = " iteration",ylab = "ratio of join order with cost=300(worst)")
+```
+
+
+```{r}
+energy_values <- plot_energy_from_csv("/Users/ruokun/Desktop/Project/week18/4_table_join/energy_per_iteration_10000_COBYLA_2_1.csv")
+print(energy_values)
 ```
 
 
 
+```{r}
+  path=glue("/Users/ruokun/Desktop/Project/week18/4_table_join/readout_summary.csv")
+res_list1=list()
+
+res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = T,target=315)
+    print(glue("optimizerAQGE; input thres:150; costType:cost"))
+res_list1[[i]]<- res[[1]]
+
+
+res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = F,target=315)
+    print(glue("optimizerAQGE; input thres:150; costType:cost"))
+res_list1[[i]]<- res[[1]]
+
+
+```
 
 
 
+```{r}
+res_list1=list()
+
+
+
+for (i in 1:120) {
+  path=glue("/Users/ruokun/Desktop/Project/week18/4_table_join/input0/readout_summary_eval{i}.csv")
+
+  # res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE)
+  #   print(glue("optimizerAQGE; input thres:150; costType:cost"))
+    
+res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = F,target=315)
+    print(glue("optimizerAQGE; input thres:150; costType:cost"))
+res_list1[[i]]<- res[[1]]
+
+}
+
+plot(x=(1:120),y=res_list1,type = "b",xlab = " iteration",ylab = "ratio of join order with cost=315(optimal)")
+
+```
+
+```{r}
+res_list1=list()
+
+
+
+for (i in 1:120) {
+  path=glue("/Users/ruokun/Desktop/Project/week18/4_table_join/input0/readout_summary_eval{i}.csv")
+
+  # res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE)
+  #   print(glue("optimizerAQGE; input thres:150; costType:cost"))
+    
+res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = T,target=315)
+    print(glue("optimizerAQGE; input thres:150; costType:cost"))
+res_list1[[i]]<- res[[1]]
+
+}
+
+plot(x=(1:120),y=res_list1,type = "b",xlab = " iteration",ylab = "ratio of join order with cost=315(optimal)")
+```
+
+
+```{r}
+energy_values <- plot_energy_from_csv("/Users/ruokun/Desktop/Project/week18/3_table_join/energy_per_iteration_10000_COBYLA_2_1.csv")
+print(energy_values)
+```
+
+
+```{r}
+for( i in 1:119){
+  path=glue("/Users/ruokun/Desktop/Project/week18/3_table_join/Week18/readout_summary_eval{i}.csv")
+  output=glue("/Users/ruokun/Desktop/Project/week18/3_table_join/Week18/processed/FallBack=True")
+  data_process(path,output,i,TRUE)
+}
+path=glue("/Users/ruokun/Desktop/Project/week18/3_table_join/Week18/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_4/0/bitstring_4/readout_summary.csv")
+  output=glue("/Users/ruokun/Desktop/Project/week18/3_table_join/Week18/processed/FallBack=True")
+  data_process(path,output,0,TRUE)
+  output=glue("/Users/ruokun/Desktop/Project/week18/3_table_join/Week18/processed/FallBack=False")
+  data_process(path,output,0,FALSE)
+```
+
+```{r}
+  path=glue("/Users/ruokun/Desktop/Project/week18/3_table_join/Week18/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_4/0/bitstring_4/readout_summary.csv")
+res_list1=list()
+
+res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = T,target=15)
+    print(glue("optimizerAQGE; input thres:150; costType:cost"))
+res_list1[[i]]<- res[[1]]
+
+
+res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = F,target=15)
+    print(glue("optimizerAQGE; input thres:150; costType:cost"))
+res_list1[[i]]<- res[[1]]
+```
+
+
+```{r}
+res_list1=list()
+res_list2=list()
+res_list3=list()
+
+
+for (i in 1:119) {
+  path=glue("/Users/ruokun/Desktop/Project/week18/3_table_join/Week18/readout_summary_eval{i}.csv")
+
+  # res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE)
+  #   print(glue("optimizerAQGE; input thres:150; costType:cost"))
+    
+res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = T,target=15)
+    print(glue("optimizerAQGE; input thres:150; costType:cost"))
+res_list1[[i]]<- res[[1]]
+
+
+}
+
+plot(x=(1:119),y=res_list1,type = "b",xlab = " iteration",ylab = "ratio of join order with cost=15(optimal)")
+
+```
+
+
+```{r}
+res_list1=list()
+res_list2=list()
+res_list3=list()
+
+
+for (i in 1:119) {
+  path=glue("/Users/ruokun/Desktop/Project/week18/3_table_join/Week18/readout_summary_eval{i}.csv")
+
+  # res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE)
+  #   print(glue("optimizerAQGE; input thres:150; costType:cost"))
+    
+res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = F,target=15)
+    print(glue("optimizerAQGE; input thres:150; costType:cost"))
+res_list1[[i]]<- res[[1]]
+
+
+}
+
+plot(x=(1:119),y=res_list1,type = "b",xlab = " iteration",ylab = "ratio of join order with cost=15(optimal)")
+```
+
+```{r}
+path=glue("/Users/ruokun/Desktop/Project/week18/4_table_join/readout_summary.csv")
+  output=glue("/Users/ruokun/Desktop/Project/week18/4_table_join/FallBack=True")
+  data_process(path,output,0,TRUE)
+  output=glue("/Users/ruokun/Desktop/Project/week18/4_table_join/FallBack=False")
+  data_process(path,output,0,FALSE)
+```
+
+
+
+```{r}
+energy_values <- plot_energy_from_csv("/Users/ruokun/Desktop/Project/Week20-qubit14/energy_per_iteration_10000_COBYLA_2_1.csv",baseline = -17)
+print(energy_values)
+```
+```{r}
+  path=glue("/Users/ruokun/Desktop/Project/Week20-qubit14/0/bitstring_4/readout_summary.csv")
+res_list1=list()
+
+res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = T,target=15)
+    print(glue("optimizerAQGE; input thres:150; costType:cost"))
+
+
+res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = F,target=15)
+    print(glue("optimizerAQGE; input thres:150; costType:cost"))
+```
+
+
+```{r}
+res_list1=list()
+res_list2=list()
+res_list3=list()
+
+
+for (i in 1:116) {
+  path=glue("/Users/ruokun/Desktop/Project/Week20-qubit14/COBYLA/input0/readout_summary_eval{i}.csv")
+
+  # res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE)
+  #   print(glue("optimizerAQGE; input thres:150; costType:cost"))
+    
+res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = F,target=75)
+    print(glue("optimizerAQGE; input thres:150; costType:cost"))
+res_list1[[i]]<- res[[1]]
+
+
+}
+
+plot(x=(1:116),y=res_list1,type = "b",xlab = " iteration",ylab = "ratio of join order with cost=75(optimal)")
+```
+
+
+
+```{r}
+res_list1=list()
+res_list2=list()
+res_list3=list()
+
+
+for (i in 1:116) {
+  path=glue("/Users/ruokun/Desktop/Project/Week20-qubit14/COBYLA/input0/processed/FallBack=True/processed/readout_summary_eval{i}.csv")
+
+  # res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE)
+  #   print(glue("optimizerAQGE; input thres:150; costType:cost"))
+    
+res <- cost_energy_boxplot_prob_cleaned(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = T,target=75)
+    print(glue("optimizerAQGE; input thres:150; costType:cost"))
+res_list1[[i]]<- res[[1]]
+
+
+}
+
+plot(x=(1:116),y=res_list1,type = "b",xlab = " iteration",ylab = "ratio of join order with cost=75(optimal)")
+```
+```{r}
+for( i in 1:116){
+  path=glue("/Users/ruokun/Desktop/Project/Week20-qubit14/COBYLA/input0/readout_summary_eval{i}.csv")
+  output=glue("/Users/ruokun/Desktop/Project/Week20-qubit14/COBYLA/input0/processed/FallBack=True")
+  data_process(path,output,i,TRUE)
+}
+path=glue("/Users/ruokun/Desktop/Project/Week20-qubit14/0/bitstring_4/readout_summary.csv")
+  output=glue("/Users/ruokun/Desktop/Project/Week20-qubit14/0/bitstring_4/processed/FallBack=True")
+  data_process(path,output,0,TRUE)
+  output=glue("/Users/ruokun/Desktop/Project/Week20-qubit14/0/bitstring_4/processed/FallBack=False")
+  data_process(path,output,0,FALSE)
+```
+
+
+```{r}
+energy_values <- plot_energy_from_csv("/Users/ruokun/Desktop/Project/Week21-qubit20/energy_per_iteration_10000_COBYLA_2_1.csv",baseline = -17)
+print(energy_values)
+```
+
+```{r}
+  path=glue("/Users/ruokun/Desktop/Project/Week21-qubit20/0/bitstring_4/readout_summary.csv")
+res_list1=list()
+
+res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = T,target=39)
+    print(glue("optimizerAQGE; input thres:150; costType:cost"))
+
+
+res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = F,target=39)
+    print(glue("optimizerAQGE; input thres:150; costType:cost"))
+```
+
+
+```{r}
+res_list1=list()
+res_list2=list()
+res_list3=list()
+
+
+for (i in 1:124) {
+  path=glue("/Users/ruokun/Desktop/Project/Week20-qubit14/COBYLA/input0/readout_summary_eval{i}.csv")
+
+  # res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE)
+  #   print(glue("optimizerAQGE; input thres:150; costType:cost"))
+    
+res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = F,target=75)
+    print(glue("optimizerAQGE; input thres:150; costType:cost"))
+res_list1[[i]]<- res[[1]]
+
+
+}
+
+plot(x=(1:124),y=res_list1,type = "b",xlab = " iteration",ylab = "ratio of join order with cost=39(optimal)")
+```
 
