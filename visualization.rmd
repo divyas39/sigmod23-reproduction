@@ -6,6 +6,13 @@ output:
 date: "2026-01-07"
 ---
 
+```{r}
+# -- BEGIN user configuration --
+data_root <- "/Users/divyashekar/Documents/Sem2/QuantumDB/sigmod23-reproduction"
+project_dir <- file.path(data_root, "Week22") 
+# -- END user configuration --
+```
+
 ```{r setup, include=FALSE,echo=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -386,25 +393,25 @@ for (opt in c("AQGD","COBYLA","SPSA")) {
 ```
 ```{r}
 
-res <- cost_energy_boxplot_prob(glue("/Users/ruokun/Desktop/Project/Week14/readout_summary.csv"),targetCol="cost",thresh=150,opt="AQGD",fallback = FALSE)
+res <- cost_energy_boxplot_prob(glue("{project_dir}/readout_summary.csv"),targetCol="cost",thresh=150,opt="AQGD",fallback = FALSE)
     print(glue("optimizerAQGE; input thres:150; costType:cost"))
     
-res <- cost_energy_boxplot_prob(glue("/Users/ruokun/Desktop/Project/Week14/readout_summary.csv"),targetCol="cost",thresh=150,opt="AQGD",fallback = TRUE)
+res <- cost_energy_boxplot_prob(glue("{project_dir}/readout_summary.csv"),targetCol="cost",thresh=150,opt="AQGD",fallback = TRUE)
     print(glue("optimizerAQGE; input thres:150; costType:cost"))
 ```
 ```{r}
-res <- cost_energy_boxplot_prob(glue("/Users/ruokun/Desktop/Project/Week14/readout_summary10000.csv"),targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE)
+res <- cost_energy_boxplot_prob(glue("{project_dir}/readout_summary10000.csv"),targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE)
     print(glue("optimizerAQGE; input thres:150; costType:cost"))
     
-res <- cost_energy_boxplot_prob(glue("/Users/ruokun/Desktop/Project/Week14/readout_summary10000.csv"),targetCol="cost",thresh=150,opt="COBYLA",fallback = TRUE)
+res <- cost_energy_boxplot_prob(glue("{project_dir}/readout_summary10000.csv"),targetCol="cost",thresh=150,opt="COBYLA",fallback = TRUE)
     print(glue("optimizerAQGE; input thres:150; costType:cost"))
 ```
 
 
 ```{r}
 for( i in 1:63){
-  path=glue("/Users/ruokun/Desktop/Project/Week15/readout_summary_eval{i}.csv")
-  output=glue("/Users/ruokun/Desktop/Project/Week15")
+  path=glue("{project_dir}/readout_summary_eval{i}.csv")
+  output=glue("{project_dir}")
   data_process(path,output,i)
 }
 ```
@@ -417,7 +424,7 @@ res_list3=list()
 
 
 for (i in 1:63) {
-  path=glue("/Users/ruokun/Desktop/Project/Week15/readout_summary_eval{i}.csv")
+  path=glue("{project_dir}/readout_summary_eval{i}.csv")
 
   # res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE)
   #   print(glue("optimizerAQGE; input thres:150; costType:cost"))
@@ -443,7 +450,7 @@ res_list3=list()
 
 
 for (i in 1:63) {
-  path=glue("/Users/ruokun/Desktop/Project/Week15/readout_summary_eval{i}.csv")
+  path=glue("{project_dir}/readout_summary_eval{i}.csv")
 
   # res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE)
   #   print(glue("optimizerAQGE; input thres:150; costType:cost"))
@@ -464,8 +471,8 @@ plot(x=(1:63),y=res_list3,type = "b",xlab = " iteration",ylab = "ratio of join o
 
 ```{r}
 for( i in 1:114){
-  path=glue("/Users/ruokun/Desktop/Project/Week17/readout_summary_eval{i}.csv")
-  output=glue("/Users/ruokun/Desktop/Project/Week17")
+  path=glue("{project_dir}/readout_summary_eval{i}.csv")
+  output=glue("{project_dir}")
   data_process(path,output,i)
 }
 ```
@@ -478,7 +485,7 @@ res_list3=list()
 
 
 for (i in 1:101) {
-  path=glue("/Users/ruokun/Desktop/Project/Week16/readout_summary_eval{i}.csv")
+  path=glue("{project_dir}/readout_summary_eval{i}.csv")
 
   # res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE)
   #   print(glue("optimizerAQGE; input thres:150; costType:cost"))
@@ -503,7 +510,7 @@ res_list3=list()
 
 
 for (i in 1:101) {
-  path=glue("/Users/ruokun/Desktop/Project/Week16/readout_summary_eval{i}.csv")
+  path=glue("{project_dir}/readout_summary_eval{i}.csv")
 
   # res <- cost_energy_boxplot_prob(path,targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE)
   #   print(glue("optimizerAQGE; input thres:150; costType:cost"))
@@ -795,3 +802,41 @@ res_list1[[i]]<- res[[1]]
 plot(x=(1:124),y=res_list1,type = "b",xlab = " iteration",ylab = "ratio of join order with cost=39(optimal)")
 ```
 
+```{r}
+# results for QAOA with SPIQ initialization for a 3 table join of cardinalities [10,15,20]
+
+res <- cost_energy_boxplot_prob(glue("{project_dir}/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_4/0/bitstring_4/readout_summary.csv"),targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE, target=15)
+    print(glue("optimizer:COBYLA; input thres:150; costType:cost"))
+    
+res <- cost_energy_boxplot_prob(glue("{project_dir}/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_4/0/bitstring_4/readout_summary.csv"),targetCol="cost",thresh=150,opt="COBYLA",fallback = TRUE,target=15)
+    print(glue("optimizer:COBYLA; input thres:150; costType:cost"))
+```
+```{r}
+# results for QAOA with SPIQ initialization for a 3 table join of cardinalities [10,15,20]
+# for the first iteration (starting)
+
+res <- cost_energy_boxplot_prob(glue("{project_dir}/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_4/COBYLA/input0/readout_summary_eval1.csv"),targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE, target=15)
+    print(glue("optimizer:COBYLA; input thres:150; costType:cost"))
+    
+res <- cost_energy_boxplot_prob(glue("{project_dir}/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_4/COBYLA/input0/readout_summary_eval1.csv"),targetCol="cost",thresh=150,opt="COBYLA",fallback = TRUE,target=15)
+    print(glue("optimizer:COBYLA; input thres:150; costType:cost"))
+```
+```{r}
+# results for QAOA with SPIQ initialization for a 4 table join
+
+res <- cost_energy_boxplot_prob(glue("{project_dir}/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_4_4table/reps_4/0/bitstring_4/readout_summary.csv"),targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE, target=39)
+    print(glue("optimizer:COBYLA; input thres:150; costType:cost"))
+    
+res <- cost_energy_boxplot_prob(glue("{project_dir}/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_4_4table/reps_4/0/bitstring_4/readout_summary.csv"),targetCol="cost",thresh=150,opt="COBYLA",fallback = TRUE,target=39)
+    print(glue("optimizer:COBYLA; input thres:150; costType:cost"))
+```
+```{r}
+# results for QAOA with SPIQ initialization for a 3 table join of cardinalities [10,15,20]
+# for the first iteration (starting)
+
+res <- cost_energy_boxplot_prob(glue("{project_dir}/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_4_4table/reps_4/COBYLA/input0/readout_summary_eval1.csv"),targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE, target=15)
+    print(glue("optimizer:COBYLA; input thres:150; costType:cost"))
+    
+res <- cost_energy_boxplot_prob(glue("{project_dir}/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_4_4table/reps_4/COBYLA/input0/readout_summary_eval1.csv"),targetCol="cost",thresh=150,opt="COBYLA",fallback = TRUE,target=15)
+    print(glue("optimizer:COBYLA; input thres:150; costType:cost"))
+```
