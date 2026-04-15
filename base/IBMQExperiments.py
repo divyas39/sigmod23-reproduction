@@ -417,7 +417,7 @@ def conduct_IBMQ_QPU_experiments():
         IBMQ.save_account(token)
         IBMQ.load_account()
     
-    iterations_categories = [10000]
+    iterations_categories = [1000]
     thres = {0:[150],1:[200],2:[300]}
     num_decimal_pos = 3
     optimal_solution = 0
@@ -440,7 +440,7 @@ def conduct_IBMQ_QPU_experiments():
 
             # qubo = ProblemGenerator.get_join_ordering_qubo('ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/QUBO/' + str(i) + '_predicates')
             check_qubit_from_qubo_and_exit(qubo, max_qubits=23)
-            curentWeek="Week22"
+            curentWeek="week22"
             
             response = None
             currentPath = f'{curentWeek}/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data'
@@ -530,7 +530,7 @@ def conduct_IBMQ_QPU_experiments():
         #             w.writerow([cumulative_iters, i, json.dumps(best_join_order), best_cost, get_rounded_val(valid_ratio), get_rounded_val(optimal_ratio),init_point])
         #         if optmi == 1 and used_eval < step:
         #             break
-            pickle_results(result_path_prefix + '/' + str(iterations) + '_Iterations/' + str(i) + '_predicates-newQUBO', response)
+            pickle_results(result_path_prefix + '/' + str(iterations) + '_Iterations/' + str(i) + f'_predicates-newQUBOreps_{TAG}_{current_optim}_trial_{TRIAL_ID}', response)
 
 def conduct_IBMQ_transpilation_experiments(tket_optimizer, optimization_level, sample_size = 20):
     result_path_prefix = 'ExperimentalAnalysis/IBMQ/Embeddings/Results/'
@@ -608,7 +608,7 @@ def parse_QPU_data(include_header=True,currentInput=0):
     else:
         result_path_prefix = 'ExperimentalAnalysis/IBMQ/QPUPerformance/Results/Collected_Data/'
         
-    iterations_categories = [10000]
+    iterations_categories = [1000]
     thres_vals = {0:[150],1:[200],2:[300], 3: [10]}
     
     for iterations in iterations_categories:
