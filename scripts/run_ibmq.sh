@@ -6,7 +6,7 @@
 #     cd /home/repro/sigmod-repro/
 # fi
 
-cd /workspace/base
+cd /home/repro/sigmod-repro/base
 
 echo "Started running IBMQ experiments..."
 
