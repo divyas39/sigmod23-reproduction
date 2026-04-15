@@ -10,8 +10,7 @@ cd /home/repro/sigmod-repro/base
 
 echo "Started running IBMQ experiments..."
 
-
-
+# AQGD
 echo "Running trial=1, reps=2, optimizer=0 (AQGD)"
 python3 IBMQExperiments.py \
   --trial 1 \
