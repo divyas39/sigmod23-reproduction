@@ -62,7 +62,7 @@ def run_callback_parameter_simulation_and_postprocess(
     quantum_instance=None,
     shots=10240,
     opt_time_ms=0.0,
-    base_dir="./Week21/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
+    base_dir="./Week22/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
     trial_id=4,
     tag=4,
     current_optim="COBYLA",
@@ -121,7 +121,7 @@ def batch_run_callback_history_and_postprocess(
     quantum_instance=None,
     shots=10240,
     opt_time_ms=0.0,
-    base_dir="./Week21/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
+    base_dir="./Week22/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
     trial_id=4,
     tag=4,
     current_optim="COBYLA",
@@ -176,7 +176,7 @@ def postprocess_callback_execute_with_readout(
     PS1,
     card_dict=None,
     opt_time_ms=0.0,
-    base_dir="./Week21/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
+    base_dir="./Week22/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
     trial_id=4,
     tag=4,
     current_optim="COBYLA",
@@ -297,7 +297,7 @@ if __name__ == '__main__':
     card, pred, pred_sel = ProblemGenerator.get_join_ordering_problem('base/ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/JSON/' + str(0) + '_predicates', generated_problems=False)
     qubo, penalty_weight=QUBOGenerator1.generate_IBMQ_QUBO_for_left_deep_trees_v2(card, pred, pred_sel)
 
-    res=convert_callback_csv_to_history('base/week21/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_2/COBYLA/input0/energy_per_iteration_10000_COBYLA_2_1.csv')
+    res=convert_callback_csv_to_history('base/Week22/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_2/COBYLA/input0/energy_per_iteration_10000_COBYLA_2_1.csv')
 
     ## get res for each iteration
 
