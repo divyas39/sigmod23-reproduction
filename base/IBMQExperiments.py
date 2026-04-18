@@ -440,16 +440,17 @@ def conduct_IBMQ_QPU_experiments():
 
             # qubo = ProblemGenerator.get_join_ordering_qubo('ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/QUBO/' + str(i) + '_predicates')
             check_qubit_from_qubo_and_exit(qubo, max_qubits=23)
-            curentWeek="week22"
+            currentWeek="Week23"
             
             response = None
-            currentPath = f'{curentWeek}/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data'
+            currentPath = f'{currentWeek}/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data'
             result_dir = os.path.join(
                         currentPath,
                         f"iterations_{iterations}",
                         f"reps_{TAG}",
                         f"{current_optim}",
-                        f"input{i}"
+                        f"input{i}",
+                        f"trial{TRIAL_ID}"
                     )
             if processing == "qpu":
                         response,init_point, used_eval, min_state_buffer = solve_with_QAOA(qubo, iterations, use_local_simulator=False)
