@@ -1,32 +1,57 @@
 import json
 import os
-import pathlib 
+import pathlib
+import csv
+import re
+import argparse
+from decimal import *
+from pathlib import Path
+from itertools import product
+
+import numpy as np
+import pickle
+import config as config
+import IBMQExperiments
+
 import Scripts.ProblemGenerator as ProblemGenerator
 import Scripts.QUBOGenerator as QUBOGenerator
 import Scripts.CircuitGeneration as CircuitGenerator
 import Scripts.TopologyGenerator as TopologyGenerator
 import Scripts.Postprocessing as Postprocessing
-from multiprocessing import Pool
-import csv
-import IBMQExperiments
-from Scripts import QUBOGenerator1
-import numpy as np
-import config as config
-import pickle
-from decimal import *
-from pathlib import Path
 import Scripts.Postprocessing1 as Postprocessing1
-from qiskit.circuit.library.n_local.qaoa_ansatz import QAOAAnsatz
 import Scripts.Postprocessing1 as PS1
+from Scripts import QUBOGenerator1
+
+from multiprocessing import Pool
+from qiskit.circuit.library.n_local.qaoa_ansatz import QAOAAnsatz
 from qiskit.providers.aer import QasmSimulator
 from qiskit.utils import QuantumInstance
-import re
 from qiskit.algorithms import NumPyMinimumEigensolver
 
-def parse_QPU_data(include_header=True,currentInput=0):
+
+OPTIMIZER_MAP = {
+    0: "AQGD",
+    1: "COBYLA",
+    2: "SPSA",
+}
+
+
+def parse_QPU_data(include_header=True, currentInput=0):
     if include_header:
-        IBMQExperiments.save_to_csv(['num_qaoa_iterations', 'num_predicates', 'valid_ratio', 'opt_ratio',f'Trial: {IBMQExperiments.TRIAL_ID}',f'Reps:{IBMQExperiments.TAG}',f'Optimizer:{IBMQExperiments.current_optim}'], 'ExperimentalAnalysis/IBMQ/QPUPerformance/Results', 'results.txt')
- 
+        IBMQExperiments.save_to_csv(
+            [
+                'num_qaoa_iterations',
+                'num_predicates',
+                'valid_ratio',
+                'opt_ratio',
+                f'Trial: {IBMQExperiments.TRIAL_ID}',
+                f'Reps:{IBMQExperiments.TAG}',
+                f'Optimizer:{IBMQExperiments.current_optim}'
+            ],
+            'ExperimentalAnalysis/IBMQ/QPUPerformance/Results',
+            'results.txt'
+        )
+
     processing = config.configuration["ibmq-processing"]
     if processing == "qpu":
         result_path_prefix = 'ExperimentalAnalysis/IBMQ/QPUPerformance/Results/QPU_Data'
@@ -34,20 +59,37 @@ def parse_QPU_data(include_header=True,currentInput=0):
         result_path_prefix = 'base/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/'
     else:
         result_path_prefix = 'ExperimentalAnalysis/IBMQ/QPUPerformance/Results/Collected_Data/'
-        
+
     iterations_categories = [10000]
-    thres_vals = {0:range(0, 301),1:range(0, 301),2:range(0, 301), 3: [10]}
-    
+    thres_vals = {0: range(0, 301), 1: range(0, 301), 2: range(0, 301), 3: [10]}
+
     for iterations in iterations_categories:
         for i in range(1):
+            card, pred, pred_sel = ProblemGenerator.get_join_ordering_problem(
+                'base/ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/JSON/' + str(i) + '_predicates',
+                generated_problems=False
+            )
+            response = IBMQExperiments.load_pickled_result(
+                result_path_prefix + '/' + str(iterations) + '_Iterations/' + str(i) + '_predicates'
+            )
 
-            card, pred, pred_sel = ProblemGenerator.get_join_ordering_problem('base/ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/JSON/' + str(i) + '_predicates', generated_problems=False)
-            response = IBMQExperiments.load_pickled_result(result_path_prefix + '/' + str(iterations) + '_Iterations/' + str(i) + '_predicates')
-            
-            best_join_order, best_join_order_costs, valid_ratio, optimal_ratio = Postprocessing.postprocess_IBMQ_response(response, card, pred, pred_sel, thres_vals[i],trial_id1=IBMQExperiments.TRIAL_ID,tag1=IBMQExperiments.TAG,current_optim1=IBMQExperiments.current_optim,iterations1=iterations,inputNumber=i)
-            IBMQExperiments.save_to_csv([iterations, i, IBMQExperiments.get_rounded_val(valid_ratio), IBMQExperiments.get_rounded_val(optimal_ratio)], 'ExperimentalAnalysis/IBMQ/QPUPerformance/Results', 'results.txt')
-
-
+            best_join_order, best_join_order_costs, valid_ratio, optimal_ratio = Postprocessing.postprocess_IBMQ_response(
+                response,
+                card,
+                pred,
+                pred_sel,
+                thres_vals[i],
+                trial_id1=IBMQExperiments.TRIAL_ID,
+                tag1=IBMQExperiments.TAG,
+                current_optim1=IBMQExperiments.current_optim,
+                iterations1=iterations,
+                inputNumber=i
+            )
+            IBMQExperiments.save_to_csv(
+                [iterations, i, IBMQExperiments.get_rounded_val(valid_ratio), IBMQExperiments.get_rounded_val(optimal_ratio)],
+                'ExperimentalAnalysis/IBMQ/QPUPerformance/Results',
+                'results.txt'
+            )
 
 
 def run_callback_parameter_simulation_and_postprocess(
@@ -75,6 +117,7 @@ def run_callback_parameter_simulation_and_postprocess(
     if quantum_instance is None:
         backend = QasmSimulator()
         quantum_instance = QuantumInstance(backend=backend, shots=shots)
+
     op, _ = qubo.to_ising()
     ansatz = QAOAAnsatz(op, reps=reps).decompose()
     param_map = {p: v for p, v in zip(ansatz.parameters, parameters)}
@@ -128,7 +171,6 @@ def batch_run_callback_history_and_postprocess(
     iterations=10000,
     input_id=0
 ):
-   
     results = []
 
     for item in callback_history:
@@ -192,18 +234,17 @@ def postprocess_callback_execute_with_readout(
         f"iterations_{iterations}",
         f"reps_{tag}",
         f"{current_optim}",
-        f"input0"
+        f"input{input_id}"
     )
     os.makedirs(result_dir, exist_ok=True)
-    print('Save to'+result_dir)
-
+    print("Save to " + result_dir)
 
     suffix = f"_eval{eval_count}" if eval_count is not None else ""
     csv_path = os.path.join(result_dir, f"readout_summary{suffix}.csv")
 
     counts = execute_result.get_counts()
     if not counts:
-        raise ValueError("execute_result.get_counts()empty")
+        raise ValueError("execute_result.get_counts() empty")
 
     total = sum(counts.values())
     solutions = []
@@ -217,10 +258,10 @@ def postprocess_callback_execute_with_readout(
         except Exception:
             energy = float(qubo.objective.evaluate(list(x)))
 
-        bitlist = list(x)               
-        occ = int(cnt)                 
-        stringbit = "".join(str(int(v)) for v in bitlist) 
-        probability = float(prob)        
+        bitlist = list(x)
+        occ = int(cnt)
+        stringbit = "".join(str(int(v)) for v in bitlist)
+        probability = float(prob)
 
         solutions.append([bitlist, occ, energy, stringbit, probability])
 
@@ -255,9 +296,6 @@ def postprocess_callback_execute_with_readout(
     print(f"Saved to {csv_path}")
     return best_for_time, all_solutions, solutions
 
-    
-    
-
 
 def _parse_parameter_string(param_str):
     s = param_str.strip()
@@ -289,46 +327,82 @@ def convert_callback_csv_to_history(csv_path, encoding="utf-8"):
 
     return callback_history
 
-if __name__ == '__main__':
-    processing = config.configuration["ibmq-processing"]
-    thre=[[150, 200, 300],[160, 200, 240, 280],[120, 150, 180, 220, 260, 300]]
+
+def get_optimizer_name(opt_value):
+    if isinstance(opt_value, int):
+        if opt_value not in OPTIMIZER_MAP:
+            raise ValueError(f"Unsupported optimizer value: {opt_value}. Use one of {list(OPTIMIZER_MAP.keys())}")
+        return OPTIMIZER_MAP[opt_value]
+
+    opt_str = str(opt_value).strip().upper()
+    reverse_map = {v.upper(): v for v in OPTIMIZER_MAP.values()}
+    if opt_str in reverse_map:
+        return reverse_map[opt_str]
+
+    raise ValueError(f"Unsupported optimizer value: {opt_value}. Use 0/1/2 or AQGD/COBYLA/SPSA")
+
+
+def process_one_configuration(trial, reps, optimizer, input_number, iterations=10000):
+    current_optim = get_optimizer_name(optimizer)
+
     result_path_prefix = 'base/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/'
-    response = IBMQExperiments.load_pickled_result(result_path_prefix + '/' + str(10000) + '_Iterations/' + str(0) + '_predicates-newQUBO')
-    card, pred, pred_sel = ProblemGenerator.get_join_ordering_problem('base/ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/JSON/' + str(0) + '_predicates', generated_problems=False)
-    qubo, penalty_weight=QUBOGenerator1.generate_IBMQ_QUBO_for_left_deep_trees_v2(card, pred, pred_sel)
+    response_path = (
+        result_path_prefix
+        + '/'
+        + str(iterations)
+        + '_Iterations/'
+        + str(input_number)
+        + '_predicates-newQUBO'
+    )
 
-    res=convert_callback_csv_to_history('base/Week23/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_2/COBYLA/input0/energy_per_iteration_10000_COBYLA_2_1.csv')
+    json_problem_path = (
+        'base/ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/JSON/'
+        + str(input_number)
+        + '_predicates'
+    )
 
-    ## get res for each iteration
+    energy_csv_path = (
+        f'base/Week23/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/'
+        f'iterations_{iterations}/reps_{reps}/{current_optim}/input{input_number}/'
+        f'energy_per_iteration_{iterations}_{current_optim}_{reps}_{trial}.csv'
+    )
 
-    batch_run_callback_history_and_postprocess(res,qubo=qubo,card=card,pred=pred,pred_sel=pred_sel,PS1=PS1,reps=2)
-    
+    print("\n====================================================")
+    print(f"Running configuration: trial={trial}, reps={reps}, optimizer={current_optim}, input={input_number}")
+    print("====================================================")
 
-    # out_path = Path("postprocess_output.txt")
-    # with open(out_path, "w", encoding="utf-8") as f:
-    #     f.write(str(response))
-    
+    response = IBMQExperiments.load_pickled_result(response_path)
 
-    # print(f"Saved postprocess output to {out_path.resolve()}")
+    card, pred, pred_sel = ProblemGenerator.get_join_ordering_problem(
+        json_problem_path,
+        generated_problems=False
+    )
 
-    # out_path = "readout_summary_bitstring_energy_prob.csv"
+    qubo, penalty_weight = QUBOGenerator1.generate_IBMQ_QUBO_for_left_deep_trees_v2(
+        card, pred, pred_sel
+    )
 
-    # Postprocessing.postprocess_IBMQ_response(response, card, pred, pred_sel,[150])
+    res = convert_callback_csv_to_history(energy_csv_path)
 
-    # Postprocessing.write_bitstring_energy_prob(response, out_path)
-
-    # Postprocessing1.readout(response, card, pred, pred_sel, card_dict=None)
-
-
-    # Postprocessing.write_bitstring_energy_prob(response,card, pred, pred_sel)
-
-    ## for readout of final outputs
+    batch_run_callback_history_and_postprocess(
+        res,
+        qubo=qubo,
+        card=card,
+        pred=pred,
+        pred_sel=pred_sel,
+        PS1=PS1,
+        reps=reps,
+        trial_id=trial,
+        tag=reps,
+        current_optim=current_optim,
+        iterations=iterations,
+        input_id=input_number
+    )
 
     Postprocessing.postprocess_qiskit_with_readout(response, card, pred, pred_sel)
 
     op, offset = qubo.to_ising()
-
-    print(f"ising Hamiltonian is: {op}; with offset of {offset}")
+    print(f"Ising Hamiltonian is: {op}; with offset of {offset}")
 
     solver = NumPyMinimumEigensolver()
     result = solver.compute_minimum_eigenvalue(op)
@@ -338,17 +412,60 @@ if __name__ == '__main__':
     print("minimum energy with offset:", result.eigenvalue.real + offset)
 
 
-    # out_path = "ising_hamiltonian.txt"
-    # with open(out_path, "w", encoding="utf-8") as f:
-    #     for i in thre:
-    #         qubo, weight_a = QUBOGenerator.generate_QUBO_for_IBMQ([10,15,20], i, 0,[], [])
-    #         op, offset = qubo.to_ising()
-    #         f.write(f"=== op (Ising Hamiltonian of thres {i}) ===\n")
-    #         f.write(str(op))
-    #         f.write("\n\n=== offset ===\n")
-    #         f.write(str(offset))
-    #         f.write("\n\n=== weight_a ===\n")
-    #         f.write(str(weight_a))
-    #         f.write("\n")
+def main():
+    parser = argparse.ArgumentParser(
+        description="Run callback-history postprocessing for one or more trial/reps/optimizer/input combinations."
+    )
+    parser.add_argument(
+        "--trial",
+        type=int,
+        nargs="+",
+        required=True,
+        help="One or more trial ids. Example: --trial 1 2 3"
+    )
+    parser.add_argument(
+        "--reps",
+        type=int,
+        nargs="+",
+        required=True,
+        help="One or more reps values. Example: --reps 1 2 3"
+    )
+    parser.add_argument(
+        "--optimizer",
+        nargs="+",
+        required=True,
+        help="One or more optimizers. Use 0 1 2 or AQGD COBYLA SPSA. Example: --optimizer 1 2 or --optimizer COBYLA SPSA"
+    )
+    parser.add_argument(
+        "--input-number",
+        type=int,
+        nargs="+",
+        required=True,
+        help="One or more input numbers. Example: --input-number 0 1 2"
+    )
+    parser.add_argument(
+        "--iterations",
+        type=int,
+        default=10000,
+        help="Iterations value used in file paths. Default: 10000"
+    )
 
-    # print(f"Saved to {out_path}")
+    args = parser.parse_args()
+
+    for trial, reps, optimizer, input_number in product(
+        args.trial,
+        args.reps,
+        args.optimizer,
+        args.input_number
+    ):
+        process_one_configuration(
+            trial=trial,
+            reps=reps,
+            optimizer=optimizer,
+            input_number=input_number,
+            iterations=args.iterations
+        )
+
+
+if __name__ == '__main__':
+    main()
