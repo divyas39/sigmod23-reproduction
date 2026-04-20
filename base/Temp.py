@@ -62,7 +62,7 @@ def run_callback_parameter_simulation_and_postprocess(
     quantum_instance=None,
     shots=10240,
     opt_time_ms=0.0,
-    base_dir="./Week26/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
+    base_dir="./Week51/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
     trial_id=1,
     tag=4,
     current_optim="COBYLA",
@@ -93,7 +93,7 @@ def run_callback_parameter_simulation_and_postprocess(
         card_dict=card_dict,
         opt_time_ms=opt_time_ms,
         base_dir=base_dir,
-        trial_id=1,
+        trial_id=trial_id,
         tag=tag,
         current_optim=current_optim,
         iterations=iterations,
@@ -121,7 +121,7 @@ def batch_run_callback_history_and_postprocess(
     quantum_instance=None,
     shots=10240,
     opt_time_ms=0.0,
-    base_dir="./Week26/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
+    base_dir="./Week51/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
     trial_id=1,
     tag=2,
     current_optim="COBYLA",
@@ -176,7 +176,7 @@ def postprocess_callback_execute_with_readout(
     PS1,
     card_dict=None,
     opt_time_ms=0.0,
-    base_dir="./Week26/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
+    base_dir="./Week51/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
     trial_id=1,
     tag=4,
     current_optim="COBYLA",
@@ -300,7 +300,7 @@ if __name__ == '__main__':
 
     for trial in range(1, 4):
         response = IBMQExperiments.load_pickled_result(result_path_prefix + '/' + str(10000) + '_Iterations/' + str(0) + '_predicates-newQUBO/trial' + str(trial))
-        res=convert_callback_csv_to_history(f'base/Week26/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_2/COBYLA/input0/trial{trial}/energy_per_iteration_10000_COBYLA_2_{trial}.csv')
+        res=convert_callback_csv_to_history(f'base/Week51/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_2/COBYLA/input0/trial{trial}/energy_per_iteration_10000_COBYLA_2_{trial}.csv')
 
         ## get res for each iteration
 
@@ -327,7 +327,16 @@ if __name__ == '__main__':
 
         ## for readout of final outputs
 
-        Postprocessing.postprocess_qiskit_with_readout(response, card, pred, pred_sel)
+        Postprocessing.postprocess_qiskit_with_readout(
+            response,
+            card,
+            pred,
+            pred_sel,
+            trial_id=trial,
+            tag=2,
+            current_optim="COBYLA",
+            iterations=10000,
+        )
 
         op, offset = qubo.to_ising()
 
