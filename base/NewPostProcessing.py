@@ -352,7 +352,8 @@ def process_one_configuration(trial, reps, optimizer, input_number, iterations=1
         + str(iterations)
         + '_Iterations/'
         + str(input_number)
-        + '_predicates-newQUBO'
+        + '_predicates-newQUBO/trial'
+        + str(trial)
     )
 
     json_problem_path = (

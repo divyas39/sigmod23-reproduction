@@ -62,8 +62,8 @@ def run_callback_parameter_simulation_and_postprocess(
     quantum_instance=None,
     shots=10240,
     opt_time_ms=0.0,
-    base_dir="./Week23/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
-    trial_id=4,
+    base_dir="./Week26/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
+    trial_id=1,
     tag=4,
     current_optim="COBYLA",
     iterations=10000,
@@ -93,7 +93,7 @@ def run_callback_parameter_simulation_and_postprocess(
         card_dict=card_dict,
         opt_time_ms=opt_time_ms,
         base_dir=base_dir,
-        trial_id=trial_id,
+        trial_id=1,
         tag=tag,
         current_optim=current_optim,
         iterations=iterations,
@@ -121,9 +121,9 @@ def batch_run_callback_history_and_postprocess(
     quantum_instance=None,
     shots=10240,
     opt_time_ms=0.0,
-    base_dir="./Week23/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
-    trial_id=4,
-    tag=4,
+    base_dir="./Week26/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
+    trial_id=1,
+    tag=2,
     current_optim="COBYLA",
     iterations=10000,
     input_id=0
@@ -148,7 +148,7 @@ def batch_run_callback_history_and_postprocess(
             shots=shots,
             opt_time_ms=opt_time_ms,
             base_dir=base_dir,
-            trial_id=trial_id,
+            trial_id=1,
             tag=tag,
             current_optim=current_optim,
             iterations=iterations,
@@ -176,8 +176,8 @@ def postprocess_callback_execute_with_readout(
     PS1,
     card_dict=None,
     opt_time_ms=0.0,
-    base_dir="./Week23/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
-    trial_id=4,
+    base_dir="./Week26/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
+    trial_id=1,
     tag=4,
     current_optim="COBYLA",
     iterations=10000,
@@ -192,7 +192,8 @@ def postprocess_callback_execute_with_readout(
         f"iterations_{iterations}",
         f"reps_{tag}",
         f"{current_optim}",
-        f"input0"
+        f"input0",
+        f"trial{trial_id}"
     )
     os.makedirs(result_dir, exist_ok=True)
     print('Save to'+result_dir)
@@ -293,62 +294,64 @@ if __name__ == '__main__':
     processing = config.configuration["ibmq-processing"]
     thre=[[150, 200, 300],[160, 200, 240, 280],[120, 150, 180, 220, 260, 300]]
     result_path_prefix = 'base/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/'
-    response = IBMQExperiments.load_pickled_result(result_path_prefix + '/' + str(10000) + '_Iterations/' + str(0) + '_predicates-newQUBO')
     card, pred, pred_sel = ProblemGenerator.get_join_ordering_problem('base/ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/JSON/' + str(0) + '_predicates', generated_problems=False)
     qubo, penalty_weight=QUBOGenerator1.generate_IBMQ_QUBO_for_left_deep_trees_v2(card, pred, pred_sel)
-
-    res=convert_callback_csv_to_history('base/Week23/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_2/COBYLA/input0/energy_per_iteration_10000_COBYLA_2_1.csv')
-
-    ## get res for each iteration
-
-    batch_run_callback_history_and_postprocess(res,qubo=qubo,card=card,pred=pred,pred_sel=pred_sel,PS1=PS1,reps=2)
     
 
-    # out_path = Path("postprocess_output.txt")
-    # with open(out_path, "w", encoding="utf-8") as f:
-    #     f.write(str(response))
-    
+    for trial in range(1, 4):
+        response = IBMQExperiments.load_pickled_result(result_path_prefix + '/' + str(10000) + '_Iterations/' + str(0) + '_predicates-newQUBO/trial' + str(trial))
+        res=convert_callback_csv_to_history(f'base/Week26/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_2/COBYLA/input0/trial{trial}/energy_per_iteration_10000_COBYLA_2_{trial}.csv')
 
-    # print(f"Saved postprocess output to {out_path.resolve()}")
+        ## get res for each iteration
 
-    # out_path = "readout_summary_bitstring_energy_prob.csv"
+        batch_run_callback_history_and_postprocess(res,qubo=qubo,card=card,pred=pred,pred_sel=pred_sel,PS1=PS1,reps=2,trial_id=trial)
+        
 
-    # Postprocessing.postprocess_IBMQ_response(response, card, pred, pred_sel,[150])
+        # out_path = Path("postprocess_output.txt")
+        # with open(out_path, "w", encoding="utf-8") as f:
+        #     f.write(str(response))
+        
 
-    # Postprocessing.write_bitstring_energy_prob(response, out_path)
+        # print(f"Saved postprocess output to {out_path.resolve()}")
 
-    # Postprocessing1.readout(response, card, pred, pred_sel, card_dict=None)
+        # out_path = "readout_summary_bitstring_energy_prob.csv"
 
+        # Postprocessing.postprocess_IBMQ_response(response, card, pred, pred_sel,[150])
 
-    # Postprocessing.write_bitstring_energy_prob(response,card, pred, pred_sel)
+        # Postprocessing.write_bitstring_energy_prob(response, out_path)
 
-    ## for readout of final outputs
-
-    Postprocessing.postprocess_qiskit_with_readout(response, card, pred, pred_sel)
-
-    op, offset = qubo.to_ising()
-
-    print(f"ising Hamiltonian is: {op}; with offset of {offset}")
-
-    solver = NumPyMinimumEigensolver()
-    result = solver.compute_minimum_eigenvalue(op)
-
-    print("minimum eigenvalue:", result.eigenvalue)
-    print("minimum eigenstate:", result.eigenstate)
-    print("minimum energy with offset:", result.eigenvalue.real + offset)
+        # Postprocessing1.readout(response, card, pred, pred_sel, card_dict=None)
 
 
-    # out_path = "ising_hamiltonian.txt"
-    # with open(out_path, "w", encoding="utf-8") as f:
-    #     for i in thre:
-    #         qubo, weight_a = QUBOGenerator.generate_QUBO_for_IBMQ([10,15,20], i, 0,[], [])
-    #         op, offset = qubo.to_ising()
-    #         f.write(f"=== op (Ising Hamiltonian of thres {i}) ===\n")
-    #         f.write(str(op))
-    #         f.write("\n\n=== offset ===\n")
-    #         f.write(str(offset))
-    #         f.write("\n\n=== weight_a ===\n")
-    #         f.write(str(weight_a))
-    #         f.write("\n")
+        # Postprocessing.write_bitstring_energy_prob(response,card, pred, pred_sel)
 
-    # print(f"Saved to {out_path}")
+        ## for readout of final outputs
+
+        Postprocessing.postprocess_qiskit_with_readout(response, card, pred, pred_sel)
+
+        op, offset = qubo.to_ising()
+
+        print(f"ising Hamiltonian is: {op}; with offset of {offset}")
+
+        solver = NumPyMinimumEigensolver()
+        result = solver.compute_minimum_eigenvalue(op)
+
+        print("minimum eigenvalue:", result.eigenvalue)
+        print("minimum eigenstate:", result.eigenstate)
+        print("minimum energy with offset:", result.eigenvalue.real + offset)
+
+
+        # out_path = "ising_hamiltonian.txt"
+        # with open(out_path, "w", encoding="utf-8") as f:
+        #     for i in thre:
+        #         qubo, weight_a = QUBOGenerator.generate_QUBO_for_IBMQ([10,15,20], i, 0,[], [])
+        #         op, offset = qubo.to_ising()
+        #         f.write(f"=== op (Ising Hamiltonian of thres {i}) ===\n")
+        #         f.write(str(op))
+        #         f.write("\n\n=== offset ===\n")
+        #         f.write(str(offset))
+        #         f.write("\n\n=== weight_a ===\n")
+        #         f.write(str(weight_a))
+        #         f.write("\n")
+
+        # print(f"Saved to {out_path}")
