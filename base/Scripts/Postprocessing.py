@@ -140,7 +140,7 @@ def brute_force_JO(card, pred, pred_sel, thres = None):
     return min_costs, min_order, second_costs, second_min_order
 
 def postprocess_IBMQ_response(response, card, pred, pred_sel, thres,trial_id1=-1,tag1 = -1,current_optim1="NOT avaliable",iterations1=0,inputNumber=0, 
-   base_dir = os.path.join(".","Week23", "ExperimentalAnalysis", "IBMQ","QPUPerformance", "Results", "CPU_Data")):
+   base_dir = os.path.join(".","Week26", "ExperimentalAnalysis", "IBMQ","QPUPerformance", "Results", "CPU_Data")):
     trial_id=trial_id1
     tag = tag1
     current_optim=current_optim1
@@ -242,7 +242,7 @@ def postprocess_DWave_response(response, card, pred, pred_sel):
     return best_join_order, best_join_order_costs, valid_ratio, optimal_ratio, first_opt_sample
 
 def callBackEnergy(iterations=-1,current_optim="invalid",TAG=-1,TRIAL_ID=-1):
-            base_dir = os.path.join(".", "ExperimentalAnalysis","Week23", "IBMQ","QPUPerformance", "Results", "CPU_Data")
+            base_dir = os.path.join(".", "ExperimentalAnalysis","Week26", "IBMQ","QPUPerformance", "Results", "CPU_Data")
             result_dir = os.path.join( base_dir, f"iterations_{iterations}", f"reps_{TAG}", f"{current_optim}" )
             filename = f"bitstring_{iterations}_{current_optim}_{TAG}_{TRIAL_ID}.csv"
             full_path = os.path.join(result_dir, filename)
@@ -270,7 +270,7 @@ def postprocess_qiskit_with_readout(
     if card_dict is None:
         card_dict = {}
 
-    base_dir = os.path.join(".", "Week23", "ExperimentalAnalysis", "IBMQ", "QPUPerformance", "Results", "CPU_Data")
+    base_dir = os.path.join(".", "Week26", "ExperimentalAnalysis", "IBMQ", "QPUPerformance", "Results", "CPU_Data")
     trial_id = 4
     tag = 4
     current_optim = 0
