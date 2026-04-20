@@ -148,7 +148,7 @@ def batch_run_callback_history_and_postprocess(
             shots=shots,
             opt_time_ms=opt_time_ms,
             base_dir=base_dir,
-            trial_id=1,
+            trial_id=trial_id,
             tag=tag,
             current_optim=current_optim,
             iterations=iterations,
