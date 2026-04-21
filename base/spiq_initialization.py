@@ -7,9 +7,12 @@ import os
 import json
 import argparse
 import numpy as np
+import qiskit
 
 import Scripts.ProblemGenerator as ProblemGenerator
 import Scripts.QUBOGenerator1 as QUBOGenerator1
+from qiskit.algorithms import QAOA
+
 # from qiskit_algorithms import NumPyMinimumEigensolver
 
 
@@ -57,17 +60,45 @@ def build_vanilla_spiq_objects(qubo, reps: int):
     """
     op, _ = qubo.to_ising()
 
-    qaoa_ansatz = QAOAAnsatz(op, reps=reps)
+    # qaoa_ansatz = QAOAAnsatz(op, reps=reps)
+
+    circuit = create_QAOA_circuit(qubo)
+    qaoa_ansatz = decompose_circuit(circuit)
 
     modified_circ = modify_circuit(qaoa_ansatz)
+    print("Length of modified_circ:", len(modified_circ))
     pcirc = transform_to_allowed_gates(modified_circ)
-    pcirc, _, angle_multipliers = relax_qaoa_parameters(pcirc)
+    pcirc_new, _, angle_multipliers = relax_qaoa_parameters(pcirc)
 
-    stim_circ = qiskit_to_stim(pcirc)
-    param_map = generate_qiskit_param_map(pcirc)
+    stim_circ = qiskit_to_stim(pcirc_new)
+    param_map = generate_qiskit_param_map(pcirc_new)
     stim_circ.define_parameter_map(param_map)
 
-    return op, qaoa_ansatz, pcirc, stim_circ, param_map, angle_multipliers
+    return op, qaoa_ansatz, pcirc_new, stim_circ, param_map, angle_multipliers
+
+
+def create_QAOA_circuit(qubo, reps=1):
+    qaoa = qiskit.algorithms.QAOA(initial_point=[0., 0.])
+    op, offset = qubo.to_ising()
+    ansatz = QAOAAnsatz(op, 1).decompose()
+    circuit = qaoa.construct_circuit(ansatz.parameters, op)[0]
+    return circuit
+
+
+# Decompose the circuit to its basis gates
+def decompose_circuit(circuit, max_unchanged_repetitions=3):
+    unchanged_counter = 0
+    while unchanged_counter < max_unchanged_repetitions:
+        old_depth = circuit.depth()
+        circuit = circuit.decompose()
+        if old_depth == circuit.depth():
+            # Increase the counter if the circuit has not changed
+            unchanged_counter = unchanged_counter + 1
+        else:
+            # Otherwise reset the counter
+            unchanged_counter = 0
+    return circuit
+
 
 
 def _clifford_to_vanilla_initial_point(ks_best, pcirc, angle_multipliers, qaoa_ansatz):
