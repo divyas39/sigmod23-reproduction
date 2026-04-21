@@ -343,9 +343,9 @@ def solve_with_QAOA(qubo, iterations, reps=TAG, use_local_simulator=False,result
     initial_point=[0., 0.]
     if TAG==2:
             # uninitialized
-            initial_point = [0.5, 0.5, 0.5, 0.5]
+            # initial_point = [0.5, 0.5, 0.5, 0.5]
             # 3 table join, sel 0.1
-            # initial_point=[1.0799224746714913, 1.0799224746714913, 1.281536766330277, 1.281536766330277]
+            initial_point=[1.0799224746714913, 1.0799224746714913, 1.281536766330277, 1.281536766330277]
             # 3 table join, sel 0.9
             # initial_point=[1.1780972450961724, 1.1780972450961724, 6.221667292016157, 6.221667292016157]
             # 4 table join 
@@ -354,9 +354,9 @@ def solve_with_QAOA(qubo, iterations, reps=TAG, use_local_simulator=False,result
             # uninitialized
             # initial_point = [0.5, 0.5, 0.5, 0.5]
             # 3 table join, sel 0.1
-            # initial_point=[1.0799224746714913, 1.0799224746714913, 1.281536766330277, 1.281536766330277]
+            initial_point=[1.0799224746714913, 1.0799224746714913, 1.281536766330277, 1.281536766330277]
             # 3 table join, sel 0.9
-            initial_point=[1.1780972450961724, 1.1780972450961724, 6.221667292016157, 6.221667292016157]
+            # initial_point=[1.1780972450961724, 1.1780972450961724, 6.221667292016157, 6.221667292016157]
             # 4 table join
             # initial_point = [1.2566370614359172, 1.2566370614359172, 5.600714276673461, 5.600714276673461]
     qaoa_meas = QAOA(optimizer=optimizer, quantum_instance=quantum_instance, reps=reps, initial_point=initial_point,callback=callback)
@@ -448,7 +448,7 @@ def conduct_IBMQ_QPU_experiments():
 
             # qubo = ProblemGenerator.get_join_ordering_qubo('ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/QUBO/' + str(i) + '_predicates')
             check_qubit_from_qubo_and_exit(qubo, max_qubits=23)
-            currentWeek="Week51"
+            currentWeek="Week27"
             
             response = None
             currentPath = f'{currentWeek}/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data'
