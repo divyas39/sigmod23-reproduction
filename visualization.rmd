@@ -961,3 +961,51 @@ res <- cost_energy_boxplot_prob(glue("/Users/divyashekar/Documents/Sem2/QuantumD
 energy_values <- plot_energy_from_csv("/Users/divyashekar/Documents/Sem2/QuantumDB/sigmod23-reproduction/base/Week52/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_2/COBYLA/input0/trial1/energy_per_iteration_10000_COBYLA_2_1.csv")
 print(energy_values)
 ```
+
+```{r}
+# Final QAOA SPIQ; 4 table - problem1, trial1
+
+res <- cost_energy_boxplot_prob(glue("/Users/divyashekar/Documents/Sem2/QuantumDB/sigmod23-reproduction/Week53/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_2/COBYLA/bitstring_1/readout_summary.csv"),targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE, target=39)
+    print(glue("optimizer:COBYLA; input thres:150; costType:cost"))
+    
+res <- cost_energy_boxplot_prob(glue("/Users/divyashekar/Documents/Sem2/QuantumDB/sigmod23-reproduction/Week53/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_2/COBYLA/bitstring_1/readout_summary.csv"),targetCol="cost",thresh=150,opt="COBYLA",fallback = TRUE,target=39)
+    print(glue("optimizer:COBYLA; input thres:150; costType:cost"))
+```
+```{r}
+# First iteration QAOA SPIQ; 4 table - problem1, trial1
+
+res <- cost_energy_boxplot_prob(glue("/Users/divyashekar/Documents/Sem2/QuantumDB/sigmod23-reproduction/Week53/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_2/COBYLA/input0/trial1/readout_summary_eval1.csv"),targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE, target=15)
+    print(glue("optimizer:COBYLA; input thres:150; costType:cost"))
+    
+res <- cost_energy_boxplot_prob(glue("/Users/divyashekar/Documents/Sem2/QuantumDB/sigmod23-reproduction/Week53/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_2/COBYLA/input0/trial1/readout_summary_eval1.csv"),targetCol="cost",thresh=150,opt="COBYLA",fallback = TRUE,target=15)
+    print(glue("optimizer:COBYLA; input thres:150; costType:cost"))
+```
+```{r}
+# energy vs iterations; SPIQ; 4 table  - problem1, trial1
+energy_values <- plot_energy_from_csv("/Users/divyashekar/Documents/Sem2/QuantumDB/sigmod23-reproduction/base/Week53/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_2/COBYLA/input0/trial1/energy_per_iteration_10000_COBYLA_2_1.csv")
+print(energy_values)
+```
+
+```{r}
+# Final QAOA SPIQ; 3 table - problem2, trial1
+
+res <- cost_energy_boxplot_prob(glue("/Users/divyashekar/Documents/Sem2/QuantumDB/sigmod23-reproduction/Week54/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_2/COBYLA/bitstring_1/readout_summary.csv"),targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE, target=15)
+    print(glue("optimizer:COBYLA; input thres:150; costType:cost"))
+    
+res <- cost_energy_boxplot_prob(glue("/Users/divyashekar/Documents/Sem2/QuantumDB/sigmod23-reproduction/Week54/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_2/COBYLA/bitstring_1/readout_summary.csv"),targetCol="cost",thresh=150,opt="COBYLA",fallback = TRUE,target=15)
+    print(glue("optimizer:COBYLA; input thres:150; costType:cost"))
+```
+```{r}
+# First iteration QAOA SPIQ; 3 table - problem2, trial1
+
+res <- cost_energy_boxplot_prob(glue("/Users/divyashekar/Documents/Sem2/QuantumDB/sigmod23-reproduction/Week54/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_2/COBYLA/input0/trial1/readout_summary_eval1.csv"),targetCol="cost",thresh=150,opt="COBYLA",fallback = FALSE, target=15)
+    print(glue("optimizer:COBYLA; input thres:150; costType:cost"))
+    
+res <- cost_energy_boxplot_prob(glue("/Users/divyashekar/Documents/Sem2/QuantumDB/sigmod23-reproduction/Week54/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_2/COBYLA/input0/trial1/readout_summary_eval1.csv"),targetCol="cost",thresh=150,opt="COBYLA",fallback = TRUE,target=15)
+    print(glue("optimizer:COBYLA; input thres:150; costType:cost"))
+```
+```{r}
+# energy vs iterations; SPIQ; 3 table - problem2, trial1
+energy_values <- plot_energy_from_csv("/Users/divyashekar/Documents/Sem2/QuantumDB/sigmod23-reproduction/base/Week54/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_2/COBYLA/input0/trial1/energy_per_iteration_10000_COBYLA_2_1.csv")
+print(energy_values)
+```
