@@ -9,6 +9,7 @@ ENV LC_ALL="C.UTF-8"
 # Install required packages
 RUN apt-get update && apt-get install -y \
 		wget \
+        vim \
         python3.8 \
         python3-pip \
         texlive-latex-base \
@@ -61,6 +62,9 @@ WORKDIR /home/repro/sigmod-repro
 # install python packages
 ENV PATH $PATH:/home/repro/.local/bin
 RUN pip3 install -r requirements.txt
+RUN export PYTHONPATH=/home/repro/sigmod-repro:$PYTHONPATH
+RUN pip3 install pygad==3.3.1
+RUN pip3 install stim
 
 # Gurobi ENV variables
 ENV GUROBI_HOME="/home/repro/sigmod-repro/gurobi/gurobi1002/linux64"

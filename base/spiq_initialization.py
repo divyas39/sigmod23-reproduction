@@ -10,6 +10,8 @@ import numpy as np
 
 import Scripts.ProblemGenerator as ProblemGenerator
 import Scripts.QUBOGenerator1 as QUBOGenerator1
+# from qiskit_algorithms import NumPyMinimumEigensolver
+
 
 from qiskit.circuit.library.n_local.qaoa_ansatz import QAOAAnsatz
 
@@ -111,6 +113,22 @@ def _clifford_to_vanilla_initial_point(ks_best, pcirc, angle_multipliers, qaoa_a
     return initial_point
 
 
+# def evaluate_exact_energy():
+#     """
+#     Solve the problem classically using the NumPyMinimumEigensolver.
+
+#     Returns:
+#         The exact energy value.
+#     """
+#     eigensolver = NumPyMinimumEigensolver()
+#     exact_solution = eigensolver.compute_minimum_eigenvalue(
+#         cost_hamiltonian
+#     ).eigenvalue.real
+#     print("Exact Energy from Eigensolver:", exact_solution)
+#     exact_energy = exact_solution
+#     return exact_solution
+
+
 def run_spiq_initialization(
     qubo,
     reps: int,
@@ -128,13 +146,15 @@ def run_spiq_initialization(
         build_vanilla_spiq_objects(qubo, reps=reps)
     )
 
+    print("Length of stim_circ:", stim_circ.gates.__len__())
+
     paulis = op.primitive.paulis.to_labels()
     coeffs = op.primitive.coeffs.real
     reversed_paulis = [p[::-1] for p in paulis]
 
-    if err is not None:
-        nm = GateGeneralDepolarizationModel(p1=err, p2=10 * err)
-        stim_circ.add_depolarization_model(nm)
+    # if err is not None:
+    #     nm = GateGeneralDepolarizationModel(p1=err, p2=10 * err)
+    #     stim_circ.add_depolarization_model(nm)
 
     (
         ks_best,
@@ -154,19 +174,32 @@ def run_spiq_initialization(
         out_file=out_file,
     )
 
-    initial_point = _clifford_to_vanilla_initial_point(
-        ks_best, pcirc, angle_multipliers, qaoa_ansatz
-    )
+    # initial_point = _clifford_to_vanilla_initial_point(
+    #     ks_best, pcirc, angle_multipliers, qaoa_ansatz
+    # )
+
+    stim_circ.assign(ks_best)
+    print("Ks Best: ", ks_best)
+    print("Energy Best: ", energy_best)
+    print("Length of pcirc:", len(pcirc))
+    
+    ordered_params = [param.name for param in pcirc.parameters]
+    angle_multipliers = [-np.pi/4 if 'gamma' in param else np.pi/4 for param in ordered_params]
+
+    random_params = np.random.uniform(0, 2 * np.pi, len(ordered_params))
+    cafqa_params = [param * (np.pi/2) for param, multiplier in zip(ks_best, angle_multipliers)] #This has to be in the order we come across the gates.
 
     expected_len = 2 * reps
-    if len(initial_point) != expected_len:
+    if len(cafqa_params) != expected_len:
         raise ValueError(
             f"Expected vanilla QAOA initial point of length {expected_len}, "
-            f"but got {len(initial_point)}"
+            f"but got {len(cafqa_params)}"
         )
 
+    print("CAFQA params (angle values for each relaxed param): ", cafqa_params)
+
     return {
-        "initial_point": initial_point,
+        "initial_point": cafqa_params,
         "energy_best": float(energy_best),
         "noisy_energy_best": None if noisy_energy_best is None else float(noisy_energy_best),
         "best_cafqa_gen_fitness": (
