@@ -261,12 +261,20 @@ def postprocess_callback_execute_with_readout(
 
 
 def _parse_parameter_string(param_str):
+    """Parse the 'paramter' column from energy_per_iteration_*.csv.
+
+    The CSV is written by `csv.writer.writerow((.., list(theta), ..))`,
+    which stringifies the parameter list via `str(list)`, producing
+    '[1.57, 4.71, 3.14]' with commas AND possibly spaces. Old callers
+    wrote space-only separated strings. Accept both by splitting on any
+    run of whitespace or commas and stripping brackets.
+    """
     s = param_str.strip()
 
     if s.startswith("[") and s.endswith("]"):
         s = s[1:-1]
 
-    parts = re.split(r"\s+", s.strip())
+    parts = re.split(r"[,\s]+", s.strip())
     parts = [p for p in parts if p]
 
     return [float(x) for x in parts]
@@ -281,11 +289,20 @@ def convert_callback_csv_to_history(csv_path, encoding="utf-8"):
         for row in reader:
             param_col = "paramter" if "paramter" in row else "parameter"
 
+            # The 'std' column is either a numeric stddev (vanilla QAOA) or a
+            # metadata repr like '{}' (SPIQ solver, which has no analytic
+            # stddev). Accept either by defaulting non-numeric values to 0.
+            std_raw = row.get("std", "")
+            try:
+                stddev_val = float(std_raw)
+            except (TypeError, ValueError):
+                stddev_val = 0.0
+
             callback_history.append({
                 "eval_count": int(row["iteration"]),
                 "parameters": _parse_parameter_string(row[param_col]),
                 "callback_value": float(row["energy"]),
-                "stddev": float(row["std"]),
+                "stddev": stddev_val,
             })
 
     return callback_history

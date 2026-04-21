@@ -18,6 +18,7 @@ import numpy as np
 import pickle
 from decimal import *
 import sys
+from types import SimpleNamespace
 
 from qiskit.circuit.library.n_local.qaoa_ansatz import QAOAAnsatz
 import Scripts.QUBOGenerator1 as QUBOGenerator1
@@ -29,6 +30,13 @@ from qiskit.utils import QuantumInstance
 from qiskit import IBMQ
 from qiskit.providers.aer import QasmSimulator
 
+try:
+    from qiskit import qpy as _qpy
+except ImportError:
+    from qiskit.circuit import qpy_serialization as _qpy
+
+qpy = _qpy
+
 import config as config
 
 import argparse
@@ -37,11 +45,22 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--trial", type=int, default=1, help="Trial number passed from bash")
 parser.add_argument("--reps", type=int, default=1, help="Tag for distinguishing runs")
 parser.add_argument("--optimizer",type=int,default=0,help="Check with optimizer is used")
+parser.add_argument(
+    "--spiq_json",
+    type=str,
+    default=None,
+    help=(
+        "Path to SPIQ initialization JSON produced by spiq_initialization.py. "
+        "If provided, run COBYLA over the relaxed ansatz (per-gate angles) "
+        "instead of the vanilla QAOAAnsatz."
+    ),
+)
 args, _ = parser.parse_known_args() 
 
 TRIAL_ID = args.trial  
 TAG = args.reps
 optmi=args.optimizer
+SPIQ_JSON = args.spiq_json
 if(optmi==0):
     current_optim="AQGD"
 elif(optmi==1):
@@ -176,6 +195,258 @@ def get_IBMQ_backend():
     backend = provider.get_backend(ibmq_backend)
     quantum_instance = QuantumInstance(backend=backend)
     return quantum_instance
+
+
+def _make_spiq_sample(x, fval, probability):
+    """Return a pickle-safe sample object shaped like qiskit_optimization
+    samples (.x / .fval / .probability). Using SimpleNamespace avoids the
+    `Can't get attribute '_SpiqResponse' on <module '__main__'>` failure
+    that custom classes produce when the pickle is loaded from a different
+    entrypoint (e.g. Temp.py) than the one that wrote it."""
+    return SimpleNamespace(x=x, fval=fval, probability=probability)
+
+
+def _make_spiq_response(x, fval, samples):
+    """Pickle-safe response shaped like MinimumEigenOptimizer.solve()'s
+    result (.x / .fval / .samples)."""
+    return SimpleNamespace(x=x, fval=fval, samples=samples)
+
+
+def _load_spiq_initialization(json_path):
+    """
+    Load the JSON + QPY artifacts produced by spiq_initialization.py.
+    Returns (pcirc, relaxed_initial_point, spiq_meta).
+
+    The `pcirc_qpy` field in the JSON may be a relative path. We resolve
+    it in this order:
+      1. As-is (works if the caller's cwd matches where SPIQ was run).
+      2. Relative to the JSON file's own directory (robust across cwd's).
+      3. Relative to the JSON file's parent directory (covers
+         cwd = base/ launching a JSON that lives at the repo root).
+    """
+    json_path = os.path.abspath(json_path)
+    with open(json_path, "r") as f:
+        meta = json.load(f)
+
+    raw_qpy = meta["pcirc_qpy"]
+    json_dir = os.path.dirname(json_path)
+    candidates = [
+        raw_qpy,
+        os.path.join(json_dir, os.path.basename(raw_qpy)),
+        os.path.join(json_dir, raw_qpy),
+        os.path.join(os.path.dirname(json_dir), raw_qpy),
+    ]
+    qpy_path = next((p for p in candidates if os.path.exists(p)), None)
+    if qpy_path is None:
+        raise FileNotFoundError(
+            f"Could not locate pcirc QPY (declared as {raw_qpy!r} in {json_path}). "
+            f"Tried: {candidates}"
+        )
+
+    with open(qpy_path, "rb") as f:
+        pcirc = qpy.load(f)[0]
+    return pcirc, list(meta["relaxed_initial_point"]), meta
+
+
+def _evaluate_expected_qubo_energy(counts, qubo):
+    """
+    Diagonal cost Hamiltonian: <H_C> = sum_x p(x) * qubo.objective.evaluate(x).
+    Qiskit bitstrings are MSB-first with spaces; we reverse to match qubo var order.
+    """
+    total = sum(counts.values())
+    if total == 0:
+        return 0.0
+    energy = 0.0
+    for bitstring, cnt in counts.items():
+        b = bitstring.replace(" ", "")[::-1]
+        x = [int(ch) for ch in b]
+        try:
+            e = float(qubo.objective.evaluate(x))
+        except Exception:
+            e = float(qubo.objective.evaluate(list(x)))
+        energy += (cnt / total) * e
+    return energy
+
+
+def solve_with_QAOA_spiq(
+    qubo,
+    iterations,
+    pcirc,
+    relaxed_initial_point,
+    reps=TAG,
+    use_local_simulator=False,
+    result_dir="./9/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
+    card=None,
+    pred=None,
+    pred_sel=None,
+    thres=None,
+    inputNumber=0,
+    expected_energy=None,
+    sanity_check_tolerance=0.25,
+    sanity_check_shots=10240,
+):
+    """
+    Variant of solve_with_QAOA that optimizes over the RELAXED ansatz
+    (one parameter per gate, as produced by SPIQ) using a classical
+    optimizer over the diagonal QUBO cost. Returns the same
+    (response, final_point, used_eval, min_state_buffer) tuple shape as
+    `solve_with_QAOA` for drop-in compatibility downstream.
+    """
+    if use_local_simulator:
+        quantum_instance = get_local_QASM_backend()
+    else:
+        quantum_instance = get_IBMQ_backend()
+
+    os.makedirs(result_dir, exist_ok=True)
+    energy_log_path = os.path.join(
+        result_dir,
+        f"energy_per_iteration_{iterations}_{current_optim}_{TAG}_{TRIAL_ID}.csv",
+    )
+
+    energies = []
+    min_energy_seen = float("inf")
+    min_params = None
+    min_eval_idx = None
+    last_params = {"val": None}
+    last_eval = {"val": 0}
+
+    ordered_params = list(pcirc.parameters)
+    n_params = len(ordered_params)
+    if len(relaxed_initial_point) != n_params:
+        raise ValueError(
+            f"relaxed_initial_point length ({len(relaxed_initial_point)}) "
+            f"does not match pcirc.parameters length ({n_params})."
+        )
+
+    measured_circ = pcirc.copy()
+    measured_circ.measure_all()
+
+    def _bind(theta_vec):
+        return measured_circ.assign_parameters(
+            {p: float(v) for p, v in zip(ordered_params, theta_vec)},
+            inplace=False,
+        )
+
+    def cost_fn(theta_vec):
+        nonlocal min_energy_seen, min_params, min_eval_idx
+        qc = _bind(theta_vec)
+        result = quantum_instance.execute(qc)
+        counts = result.get_counts()
+        energy = _evaluate_expected_qubo_energy(counts, qubo)
+
+        eval_count = last_eval["val"] + 1
+        last_eval["val"] = eval_count
+        last_params["val"] = list(theta_vec)
+        # 4th column mirrors vanilla QAOA's 'std' column. We don't compute
+        # one for the custom cost_fn (it's a deterministic scalar), so emit
+        # 0.0 to keep the CSV schema uniform with downstream parsers like
+        # Temp.convert_callback_csv_to_history.
+        energies.append((eval_count, energy, list(theta_vec), 0.0))
+
+        if energy < min_energy_seen:
+            min_energy_seen = energy
+            min_params = list(theta_vec)
+            min_eval_idx = int(eval_count)
+        return energy
+
+    if expected_energy is not None:
+        # SPIQ's energy_best is the Ising-basis expectation (no offset).
+        # Our simulator evaluates qubo.objective on sampled bitstrings, which
+        # is in the QUBO basis. The two differ exactly by the offset returned
+        # by qubo.to_ising(), so subtract it before comparing.
+        _op, ising_offset = qubo.to_ising()
+        sanity_qi = QuantumInstance(backend=QasmSimulator(), shots=sanity_check_shots)
+        sanity_qc = _bind(relaxed_initial_point)
+        sanity_counts = sanity_qi.execute(sanity_qc).get_counts()
+        sanity_energy_qubo = _evaluate_expected_qubo_energy(sanity_counts, qubo)
+        sanity_energy_ising = sanity_energy_qubo - float(ising_offset)
+        rel_err = abs(sanity_energy_ising - expected_energy) / max(abs(expected_energy), 1e-9)
+        print(
+            f"[spiq-sanity] expected_energy (from SPIQ, Ising) = {expected_energy:.6f}, "
+            f"simulator <H_C>_QUBO at relaxed_initial_point = {sanity_energy_qubo:.6f}, "
+            f"simulator <H_C>_Ising (= QUBO - offset {ising_offset:.4f}) = {sanity_energy_ising:.6f}, "
+            f"rel_err = {rel_err:.3f}"
+        )
+        if rel_err > sanity_check_tolerance:
+            raise RuntimeError(
+                f"Sanity check failed: simulator Ising energy {sanity_energy_ising:.6f} diverges "
+                f"from SPIQ reported {expected_energy:.6f} (relative error {rel_err:.3f} > "
+                f"tolerance {sanity_check_tolerance}). This usually means the relaxed "
+                "pcirc is not being bound to the same Clifford state as stim. "
+                "Common causes: dropped sign on the gate multiplier when computing "
+                "`relaxed_initial_point`, bitstring endianness mismatch in "
+                "`_evaluate_expected_qubo_energy`, or a stale QPY file."
+            )
+
+    if optmi == 1:
+        optimizer = COBYLA(maxiter=iterations, rhobeg=2.0, tol=1e-12, disp=True)
+    elif optmi == 2:
+        optimizer = SPSA(maxiter=iterations)
+    else:
+        optimizer = AQGD(maxiter=iterations, eta=0.01)
+
+    opt_result = optimizer.minimize(fun=cost_fn, x0=np.asarray(relaxed_initial_point))
+
+    with open(energy_log_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["iteration", "energy", "paramter", "std"])
+        writer.writerows(energies)
+
+    final_point = last_params["val"] if last_params["val"] is not None else list(relaxed_initial_point)
+    used_eval = last_eval["val"]
+
+    checkpoint_qi = QuantumInstance(backend=QasmSimulator(), shots=10240)
+    samples = []
+    best_bitstring = None
+    best_fval = float("inf")
+
+    if min_params is not None:
+        try:
+            qc = _bind(min_params)
+            result = checkpoint_qi.execute(qc)
+            counts = result.get_counts()
+            shots = sum(counts.values()) if counts else 0
+            for bitstring, cnt in counts.items():
+                b = bitstring.replace(" ", "")[::-1]
+                x = [int(ch) for ch in b]
+                try:
+                    e = float(qubo.objective.evaluate(x))
+                except Exception:
+                    e = float(qubo.objective.evaluate(list(x)))
+                prob = cnt / shots if shots else 0.0
+                samples.append({"x": x, "fval": e, "probability": prob, "count": cnt})
+                if e < best_fval:
+                    best_fval = e
+                    best_bitstring = x
+        except Exception as exc:
+            print(f"[spiq-solver] sampling best-seen params failed: {exc}")
+
+    min_state_buffer = None
+    if min_params is not None:
+        min_state_buffer = {
+            "min_energy": float(min_energy_seen),
+            "min_eval_idx": min_eval_idx,
+            "min_params": min_params,
+            "shots": sum(s["count"] for s in samples) if samples else 0,
+            "samples": samples,
+        }
+
+    response_samples = [
+        _make_spiq_sample(s["x"], s["fval"], s["probability"]) for s in samples
+    ]
+    response = _make_spiq_response(
+        x=best_bitstring if best_bitstring is not None else [0] * len(ordered_params),
+        fval=best_fval if samples else float(opt_result.fun),
+        samples=response_samples,
+    )
+
+    print(
+        f"[spiq-solver] done: n_params={n_params}, "
+        f"used_eval={used_eval}, best_energy={min_energy_seen}, "
+        f"opt_result.fun={opt_result.fun}"
+    )
+
+    return response, final_point, used_eval, min_state_buffer
 
 
 def solve_with_QAOA(qubo, iterations, reps=TAG, use_local_simulator=False,result_dir="./9/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
@@ -460,8 +731,29 @@ def conduct_IBMQ_QPU_experiments():
                         f"input{i}",
                         f"trial{TRIAL_ID}"
                     )
+            spiq_bundle = None
+            if SPIQ_JSON:
+                try:
+                    spiq_bundle = _load_spiq_initialization(SPIQ_JSON)
+                    print(
+                        f"[spiq] loaded {SPIQ_JSON}: "
+                        f"{len(spiq_bundle[1])} relaxed angles, "
+                        f"pcirc qpy={spiq_bundle[2].get('pcirc_qpy')}"
+                    )
+                except Exception as exc:
+                    print(f"[spiq] failed to load {SPIQ_JSON}: {exc}. Falling back to vanilla QAOA.")
+                    spiq_bundle = None
+
             if processing == "qpu":
-                        response,init_point, used_eval, min_state_buffer = solve_with_QAOA(qubo, iterations, use_local_simulator=False)
+                        if spiq_bundle is not None:
+                            pcirc_spiq, relaxed_ip, spiq_meta = spiq_bundle
+                            response,init_point, used_eval, min_state_buffer = solve_with_QAOA_spiq(
+                                qubo, iterations, pcirc_spiq, relaxed_ip,
+                                use_local_simulator=False,
+                                expected_energy=spiq_meta.get("energy_best"),
+                            )
+                        else:
+                            response,init_point, used_eval, min_state_buffer = solve_with_QAOA(qubo, iterations, use_local_simulator=False)
                         result_path_prefix = 'ExperimentalAnalysis/IBMQ/QPUPerformance/Results/QPU_Data'
                         # If we obtained a buffered minimum-state, postprocess it for readout summary
                         if min_state_buffer is not None:
@@ -501,7 +793,16 @@ def conduct_IBMQ_QPU_experiments():
                             except Exception:
                                 pass
             else:
-                        response,init_point, used_eval, min_state_buffer = solve_with_QAOA(qubo, iterations, use_local_simulator=True,result_dir=result_dir,reps=TAG,
+                        if spiq_bundle is not None:
+                            pcirc_spiq, relaxed_ip, spiq_meta = spiq_bundle
+                            response,init_point, used_eval, min_state_buffer = solve_with_QAOA_spiq(
+                                qubo, iterations, pcirc_spiq, relaxed_ip,
+                                use_local_simulator=True, result_dir=result_dir, reps=TAG,
+                                card=card, pred=pred, pred_sel=pred_sel, thres=thres[i], inputNumber=i,
+                                expected_energy=spiq_meta.get("energy_best"),
+                            )
+                        else:
+                            response,init_point, used_eval, min_state_buffer = solve_with_QAOA(qubo, iterations, use_local_simulator=True,result_dir=result_dir,reps=TAG,
                                                                          card=card, pred=pred, pred_sel=pred_sel, thres=thres[i],inputNumber=i)
                         result_path_prefix = f'ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data'
                         # If min_state_buffer exists, write a CSV of bitstring/energy/prob for later analysis
