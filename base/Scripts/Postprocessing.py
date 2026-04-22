@@ -277,7 +277,7 @@ def postprocess_qiskit_with_readout(
 
     if base_dir is None:
         base_dir = os.path.join(".", "Week51", "ExperimentalAnalysis", "IBMQ", "QPUPerformance", "Results", "CPU_Data")
-    result_dir = os.path.join(base_dir, f"iterations_{iterations}", f"reps_{tag}", f"{current_optim}", f"bitstring_{trial_id}")
+    result_dir = os.path.join(base_dir, f"iterations_{iterations}", f"reps_{tag}", f"{current_optim}", f"trial_{trial_id}")
     os.makedirs(result_dir, exist_ok=True)
     csv_path = os.path.join(result_dir, "readout_summary.csv")
 

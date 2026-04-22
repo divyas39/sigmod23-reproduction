@@ -315,14 +315,13 @@ if __name__ == '__main__':
     qubo, penalty_weight=QUBOGenerator1.generate_IBMQ_QUBO_for_left_deep_trees_v2(card, pred, pred_sel)
     
 
-    for trial in range(1, 4):
+    for trial in range(1, 2):
         response = IBMQExperiments.load_pickled_result(result_path_prefix + '/' + str(10000) + '_Iterations/' + str(0) + '_predicates-newQUBO/trial' + str(trial))
         res=convert_callback_csv_to_history(f'base/Week51/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_2/COBYLA/input0/trial{trial}/energy_per_iteration_10000_COBYLA_2_{trial}.csv')
 
         ## get res for each iteration
-
-        batch_run_callback_history_and_postprocess(res,qubo=qubo,card=card,pred=pred,pred_sel=pred_sel,PS1=PS1,reps=2,trial_id=trial)
-        
+        res_filtered = [item for item in res if int(item.get("eval_count", -1)) == 1]
+        batch_run_callback_history_and_postprocess(res_filtered, qubo=qubo, card=card, pred=pred, pred_sel=pred_sel, PS1=PS1, reps=2, trial_id=trial)
 
         # out_path = Path("postprocess_output.txt")
         # with open(out_path, "w", encoding="utf-8") as f:
