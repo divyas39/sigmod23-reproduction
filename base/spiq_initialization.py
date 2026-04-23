@@ -501,9 +501,15 @@ def main():
         input_idx=args.input_idx,
     )
 
+    # Encode the problem shape into the filename suffix so multiple inputs with
+    # the same (input_idx, reps) -- e.g. regenerated or variant problem sets --
+    # don't silently clobber each other on disk.
+    shape_suffix = f"{len(card)}rel_{len(pred)}pred"
+    base_stub = f"input{args.input_idx}_reps{args.reps}_{shape_suffix}"
+
     out_file = os.path.join(
         args.out_dir,
-        f"spiq_trace_input{args.input_idx}_reps{args.reps}.txt",
+        f"spiq_trace_{base_stub}.txt",
     )
 
     result = run_spiq_initialization(
@@ -519,11 +525,11 @@ def main():
 
     json_out = os.path.join(
         args.out_dir,
-        f"spiq_initial_point_input{args.input_idx}_reps{args.reps}.json",
+        f"spiq_initial_point_{base_stub}.json",
     )
     pcirc_qpy = os.path.join(
         args.out_dir,
-        f"spiq_pcirc_input{args.input_idx}_reps{args.reps}.qpy",
+        f"spiq_pcirc_{base_stub}.qpy",
     )
 
     with open(pcirc_qpy, "wb") as fqpy:
@@ -535,6 +541,21 @@ def main():
         # "threshold": args.threshold,
         # "num_decimal_pos": args.num_decimal_pos,
         "n_gens": args.n_gens,
+        "problem_input": {
+            "input_idx": args.input_idx,
+            "source": (
+                f"ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/JSON/"
+                f"{args.input_idx}_predicates"
+            ),
+            "num_relations": len(card),
+            "num_predicates": len(pred),
+            "card": card,
+            # pred is a list of tuples out of format_loaded_pred; JSON has no
+            # tuple type, so normalize to lists for round-trippability.
+            "pred": [list(p) for p in pred],
+            "pred_sel": pred_sel,
+            "penalty_weight": float(penalty_weight),
+        },
         "initial_point": result["initial_point"],
         "relaxed_initial_point": result["relaxed_initial_point"],
         "relaxed_param_names": result["relaxed_param_names"],

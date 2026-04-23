@@ -62,7 +62,7 @@ WORKDIR /home/repro/sigmod-repro
 # install python packages
 ENV PATH $PATH:/home/repro/.local/bin
 RUN pip3 install -r requirements.txt
-RUN export PYTHONPATH=/home/repro/sigmod-repro:$PYTHONPATH
+ENV PYTHONPATH=/home/repro/sigmod-repro:${PYTHONPATH}
 RUN pip3 install pygad==3.3.1
 RUN pip3 install stim
 
