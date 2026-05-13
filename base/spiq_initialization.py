@@ -13,6 +13,7 @@ import Scripts.ProblemGenerator as ProblemGenerator
 import Scripts.QUBOGenerator1 as QUBOGenerator1
 from qiskit.circuit import ParameterExpression
 from qiskit.converters import circuit_to_dag
+from qiskit.algorithms import NumPyMinimumEigensolver
 
 try:
     from qiskit.qpy import dump as qpy_dump
@@ -438,6 +439,34 @@ def run_spiq_initialization(
     }
 
 
+def evaluate_exact_ground_state_energy(qubo):
+    """
+    Compute theoretical ground-state energy for the join-ordering QUBO.
+
+    Returns:
+        exact Ising-scale energy, QUBO-scale energy, and Ising offset.
+    """
+    op, offset = qubo.to_ising()
+
+    solver = NumPyMinimumEigensolver()
+    result = solver.compute_minimum_eigenvalue(op)
+
+    exact_ising_energy = float(result.eigenvalue.real)
+    exact_qubo_energy = exact_ising_energy + float(offset)
+
+    print("\n===== EXACT GROUND STATE ENERGY =====")
+    print("Exact ground-state energy, Ising scale:", exact_ising_energy)
+    print("Ising/QUBO offset:", float(offset))
+    print("Exact ground-state energy, QUBO scale:", exact_qubo_energy)
+    print("=====================================\n")
+
+    return {
+        "exact_ising_energy": exact_ising_energy,
+        "ising_offset": float(offset),
+        "exact_qubo_energy": exact_qubo_energy,
+    }
+
+
 def main():
     parser = argparse.ArgumentParser()
 
@@ -463,6 +492,8 @@ def main():
     qubo, card, pred, pred_sel, penalty_weight = build_problem(
         input_idx=args.input_idx,
     )
+
+    exact_ground_state = evaluate_exact_ground_state_energy(qubo)
 
     shape_suffix = f"{len(card)}rel_{len(pred)}pred"
     base_stub = f"input{args.input_idx}_reps{args.reps}_{shape_suffix}"
@@ -530,6 +561,7 @@ def main():
         "best_cafqa_gen_fitness": result["best_cafqa_gen_fitness"],
         "ks_best_raw": result["ks_best_raw"],
         "spiq_trace_file": out_file,
+        "exact_ground_state": exact_ground_state,
     }
 
     with open(json_out, "w") as f:
