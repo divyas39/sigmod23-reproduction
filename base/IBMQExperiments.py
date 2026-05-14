@@ -326,6 +326,12 @@ def solve_with_QAOA_spiq(
             {p: float(v) for p, v in zip(ordered_params, theta_vec)},
             inplace=False,
         )
+    
+    def evaluate_qubo_energy_only(theta_vec):
+        qc = _bind(theta_vec)
+        result = quantum_instance.execute(qc)
+        counts = result.get_counts()
+        return _evaluate_expected_qubo_energy(counts, qubo)
 
     def cost_fn(theta_vec):
         nonlocal min_energy_seen, min_params, min_eval_idx
@@ -385,8 +391,23 @@ def solve_with_QAOA_spiq(
     else:
         optimizer = AQGD(maxiter=iterations, eta=0.01)
 
-    opt_result = optimizer.minimize(fun=cost_fn, x0=np.asarray(relaxed_initial_point))
+     # Now let optimizer start from the SPIQ point
+    opt_result = optimizer.minimize(
+        fun=cost_fn,
+        x0=np.asarray(relaxed_initial_point)
+    )
 
+    initial_energy = evaluate_qubo_energy_only(np.asarray(relaxed_initial_point))
+
+    # energies.append((
+    #     0,
+    #     initial_energy,
+    #     list(relaxed_initial_point),
+    #     0.0
+    # ))
+
+    print(f"[spiq-init] logged iteration 0 energy = {initial_energy}")
+    
     with open(energy_log_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["iteration", "energy", "paramter", "std"])
@@ -733,7 +754,7 @@ def conduct_IBMQ_QPU_experiments():
 
             # qubo = ProblemGenerator.get_join_ordering_qubo('ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/QUBO/' + str(i) + '_predicates')
             check_qubit_from_qubo_and_exit(qubo, max_qubits=23)
-            currentWeek="Week62"
+            currentWeek="Week84"
             
             response = None
             currentPath = f'{currentWeek}/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data'

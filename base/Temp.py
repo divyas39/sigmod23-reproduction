@@ -23,11 +23,25 @@ from qiskit.utils import QuantumInstance
 import re
 from qiskit.algorithms import NumPyMinimumEigensolver
 
-def parse_QPU_data(include_header=True,currentInput=0):
+
+def parse_QPU_data(include_header=True, currentInput=0):
     if include_header:
-        IBMQExperiments.save_to_csv(['num_qaoa_iterations', 'num_predicates', 'valid_ratio', 'opt_ratio',f'Trial: {IBMQExperiments.TRIAL_ID}',f'Reps:{IBMQExperiments.TAG}',f'Optimizer:{IBMQExperiments.current_optim}'], 'ExperimentalAnalysis/IBMQ/QPUPerformance/Results', 'results.txt')
+        IBMQExperiments.save_to_csv(
+            [
+                'num_qaoa_iterations',
+                'num_predicates',
+                'valid_ratio',
+                'opt_ratio',
+                f'Trial: {IBMQExperiments.TRIAL_ID}',
+                f'Reps:{IBMQExperiments.TAG}',
+                f'Optimizer:{IBMQExperiments.current_optim}'
+            ],
+            'ExperimentalAnalysis/IBMQ/QPUPerformance/Results',
+            'results.txt'
+        )
  
     processing = config.configuration["ibmq-processing"]
+
     if processing == "qpu":
         result_path_prefix = 'ExperimentalAnalysis/IBMQ/QPUPerformance/Results/QPU_Data'
     elif processing == "cpu":
@@ -36,18 +50,47 @@ def parse_QPU_data(include_header=True,currentInput=0):
         result_path_prefix = 'ExperimentalAnalysis/IBMQ/QPUPerformance/Results/Collected_Data/'
         
     iterations_categories = [10000]
-    thres_vals = {0:range(0, 301),1:range(0, 301),2:range(0, 301), 3: [10]}
+    thres_vals = {
+        0: range(0, 301),
+        1: range(0, 301),
+        2: range(0, 301),
+        3: [10]
+    }
     
     for iterations in iterations_categories:
         for i in range(1):
+            card, pred, pred_sel = ProblemGenerator.get_join_ordering_problem(
+                'base/ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/JSON/' + str(i) + '_predicates',
+                generated_problems=False
+            )
 
-            card, pred, pred_sel = ProblemGenerator.get_join_ordering_problem('base/ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/JSON/' + str(i) + '_predicates', generated_problems=False)
-            response = IBMQExperiments.load_pickled_result(result_path_prefix + '/' + str(iterations) + '_Iterations/' + str(i) + '_predicates')
+            response = IBMQExperiments.load_pickled_result(
+                result_path_prefix + '/' + str(iterations) + '_Iterations/' + str(i) + '_predicates'
+            )
             
-            best_join_order, best_join_order_costs, valid_ratio, optimal_ratio = Postprocessing.postprocess_IBMQ_response(response, card, pred, pred_sel, thres_vals[i],trial_id1=IBMQExperiments.TRIAL_ID,tag1=IBMQExperiments.TAG,current_optim1=IBMQExperiments.current_optim,iterations1=iterations,inputNumber=i)
-            IBMQExperiments.save_to_csv([iterations, i, IBMQExperiments.get_rounded_val(valid_ratio), IBMQExperiments.get_rounded_val(optimal_ratio)], 'ExperimentalAnalysis/IBMQ/QPUPerformance/Results', 'results.txt')
+            best_join_order, best_join_order_costs, valid_ratio, optimal_ratio = Postprocessing.postprocess_IBMQ_response(
+                response,
+                card,
+                pred,
+                pred_sel,
+                thres_vals[i],
+                trial_id1=IBMQExperiments.TRIAL_ID,
+                tag1=IBMQExperiments.TAG,
+                current_optim1=IBMQExperiments.current_optim,
+                iterations1=iterations,
+                inputNumber=i
+            )
 
-
+            IBMQExperiments.save_to_csv(
+                [
+                    iterations,
+                    i,
+                    IBMQExperiments.get_rounded_val(valid_ratio),
+                    IBMQExperiments.get_rounded_val(optimal_ratio)
+                ],
+                'ExperimentalAnalysis/IBMQ/QPUPerformance/Results',
+                'results.txt'
+            )
 
 
 def run_callback_parameter_simulation_and_postprocess(
@@ -62,7 +105,7 @@ def run_callback_parameter_simulation_and_postprocess(
     quantum_instance=None,
     shots=10240,
     opt_time_ms=0.0,
-    base_dir="./Week62/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
+    base_dir="./Week84/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
     trial_id=1,
     tag=4,
     current_optim="COBYLA",
@@ -72,15 +115,20 @@ def run_callback_parameter_simulation_and_postprocess(
 ):
     if card_dict is None:
         card_dict = {}
+
     if quantum_instance is None:
         backend = QasmSimulator()
         quantum_instance = QuantumInstance(backend=backend, shots=shots)
+
     op, _ = qubo.to_ising()
+
     ansatz = QAOAAnsatz(op, reps=reps).decompose()
     param_map = {p: v for p, v in zip(ansatz.parameters, parameters)}
+
     qc = ansatz.assign_parameters(param_map, inplace=False)
     qc = qc.copy()
     qc.measure_all()
+
     execute_result = quantum_instance.execute(qc)
 
     best_for_time, all_solutions, solutions_for_readout = postprocess_callback_execute_with_readout(
@@ -121,14 +169,13 @@ def batch_run_callback_history_and_postprocess(
     quantum_instance=None,
     shots=10240,
     opt_time_ms=0.0,
-    base_dir="./Week62/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
+    base_dir="./Week84/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
     trial_id=1,
     tag=2,
     current_optim="COBYLA",
     iterations=10000,
     input_id=0
 ):
-   
     results = []
 
     for item in callback_history:
@@ -176,7 +223,7 @@ def postprocess_callback_execute_with_readout(
     PS1,
     card_dict=None,
     opt_time_ms=0.0,
-    base_dir="./Week62/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
+    base_dir="./Week84/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data",
     trial_id=1,
     tag=4,
     current_optim="COBYLA",
@@ -192,19 +239,20 @@ def postprocess_callback_execute_with_readout(
         f"iterations_{iterations}",
         f"reps_{tag}",
         f"{current_optim}",
-        f"input0",
+        f"input{input_id}",
         f"trial{trial_id}"
     )
-    os.makedirs(result_dir, exist_ok=True)
-    print('Save to'+result_dir)
 
+    os.makedirs(result_dir, exist_ok=True)
+    print("Save to " + result_dir)
 
     suffix = f"_eval{eval_count}" if eval_count is not None else ""
     csv_path = os.path.join(result_dir, f"readout_summary{suffix}.csv")
 
     counts = execute_result.get_counts()
+
     if not counts:
-        raise ValueError("execute_result.get_counts()empty")
+        raise ValueError("execute_result.get_counts() empty")
 
     total = sum(counts.values())
     solutions = []
@@ -213,21 +261,27 @@ def postprocess_callback_execute_with_readout(
         prob = cnt / total
         b = bitstring.replace(" ", "")
         x = np.array([int(ch) for ch in b[::-1]], dtype=int)
+
         try:
             energy = float(qubo.objective.evaluate(x))
         except Exception:
             energy = float(qubo.objective.evaluate(list(x)))
 
-        bitlist = list(x)               
-        occ = int(cnt)                 
-        stringbit = "".join(str(int(v)) for v in bitlist) 
-        probability = float(prob)        
+        bitlist = list(x)
+        occ = int(cnt)
+        stringbit = "".join(str(int(v)) for v in bitlist)
+        probability = float(prob)
 
         solutions.append([bitlist, occ, energy, stringbit, probability])
 
     response_like = [solutions, float(opt_time_ms)]
+
     best_for_time, all_solutions = PS1.readout(
-        response_like, card, pred, pred_sel, card_dict
+        response_like,
+        card,
+        pred,
+        pred_sel,
+        card_dict
     )
 
     with open(csv_path, "w", newline="", encoding="utf-8") as f:
@@ -235,39 +289,72 @@ def postprocess_callback_execute_with_readout(
 
         w.writerow(["# best_solutions_for_time"])
         w.writerow([
-            "bitstring", "rank", "join_order", "cost",
-            "time_ms", "used_fallback", "energy", "count", "probability"
+            "bitstring",
+            "rank",
+            "join_order",
+            "cost",
+            "time_ms",
+            "used_fallback",
+            "energy",
+            "count",
+            "probability"
         ])
+
         for idx, sol in enumerate(best_for_time):
             bitstring, join_order, cost, t_ms, used_fallback, energy, occ, probability = sol
-            w.writerow([bitstring, idx, join_order, cost, t_ms, used_fallback, energy, occ, probability])
+            w.writerow([
+                bitstring,
+                idx,
+                join_order,
+                cost,
+                t_ms,
+                used_fallback,
+                energy,
+                occ,
+                probability
+            ])
 
         w.writerow([])
 
         w.writerow(["# all_solutions"])
         w.writerow([
-            "bitstring", "index", "join_order", "cost",
-            "time_ms", "used_fallback", "energy", "count", "probability"
+            "bitstring",
+            "index",
+            "join_order",
+            "cost",
+            "time_ms",
+            "used_fallback",
+            "energy",
+            "count",
+            "probability"
         ])
+
         for idx, sol in enumerate(all_solutions):
             bitstring, join_order, cost, t_ms, used_fallback, energy, occ, probability = sol
-            w.writerow([bitstring, idx, join_order, cost, t_ms, used_fallback, energy, occ, probability])
+            w.writerow([
+                bitstring,
+                idx,
+                join_order,
+                cost,
+                t_ms,
+                used_fallback,
+                energy,
+                occ,
+                probability
+            ])
 
     print(f"Saved to {csv_path}")
-    return best_for_time, all_solutions, solutions
 
-    
-    
+    return best_for_time, all_solutions, solutions
 
 
 def _parse_parameter_string(param_str):
-    """Parse the 'paramter' column from energy_per_iteration_*.csv.
+    """
+    Parse the 'paramter' column from energy_per_iteration_*.csv.
 
-    The CSV is written by `csv.writer.writerow((.., list(theta), ..))`,
-    which stringifies the parameter list via `str(list)`, producing
-    '[1.57, 4.71, 3.14]' with commas AND possibly spaces. Old callers
-    wrote space-only separated strings. Accept both by splitting on any
-    run of whitespace or commas and stripping brackets.
+    The CSV is written by csv.writer.writerow((.., list(theta), ..)),
+    which stringifies the parameter list as '[1.57, 4.71, 3.14]'.
+    This accepts both comma-separated and whitespace-separated formats.
     """
     s = param_str.strip()
 
@@ -289,10 +376,8 @@ def convert_callback_csv_to_history(csv_path, encoding="utf-8"):
         for row in reader:
             param_col = "paramter" if "paramter" in row else "parameter"
 
-            # The 'std' column is either a numeric stddev (vanilla QAOA) or a
-            # metadata repr like '{}' (SPIQ solver, which has no analytic
-            # stddev). Accept either by defaulting non-numeric values to 0.
             std_raw = row.get("std", "")
+
             try:
                 stddev_val = float(std_raw)
             except (TypeError, ValueError):
@@ -307,41 +392,85 @@ def convert_callback_csv_to_history(csv_path, encoding="utf-8"):
 
     return callback_history
 
+
 if __name__ == '__main__':
     processing = config.configuration["ibmq-processing"]
-    thre=[[150, 200, 300],[160, 200, 240, 280],[120, 150, 180, 220, 260, 300]]
+
+    thre = [
+        [150, 200, 300],
+        [160, 200, 240, 280],
+        [120, 150, 180, 220, 260, 300]
+    ]
+
+    input_id = 0
+    reps = 2
+    current_optim = "COBYLA"
+    iterations = 10000
+
     result_path_prefix = 'base/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/'
-    card, pred, pred_sel = ProblemGenerator.get_join_ordering_problem('base/ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/JSON/' + str(0) + '_predicates', generated_problems=False)
-    qubo, penalty_weight=QUBOGenerator1.generate_IBMQ_QUBO_for_left_deep_trees_v2(card, pred, pred_sel)
-    
 
-    for trial in range(1, 4):
-        response = IBMQExperiments.load_pickled_result(result_path_prefix + '/' + str(10000) + '_Iterations/' + str(0) + '_predicates-newQUBO/trial' + str(trial))
-        res=convert_callback_csv_to_history(f'base/Week62/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_2/COBYLA/input0/trial{trial}/energy_per_iteration_10000_COBYLA_2_{trial}.csv')
+    card, pred, pred_sel = ProblemGenerator.get_join_ordering_problem(
+        'base/ExperimentalAnalysis/IBMQ/QPUPerformance/Problems/JSON/' + str(input_id) + '_predicates',
+        generated_problems=False
+    )
 
-        ## get res for each iteration
-        res_filtered = [item for item in res if int(item.get("eval_count", -1)) == 1]
-        batch_run_callback_history_and_postprocess(res_filtered, qubo=qubo, card=card, pred=pred, pred_sel=pred_sel, PS1=PS1, reps=2, trial_id=trial)
+    qubo, penalty_weight = QUBOGenerator1.generate_IBMQ_QUBO_for_left_deep_trees_v2(
+        card,
+        pred,
+        pred_sel
+    )
 
-        # out_path = Path("postprocess_output.txt")
-        # with open(out_path, "w", encoding="utf-8") as f:
-        #     f.write(str(response))
-        
+    for trial in range(1, 2):
+        response = IBMQExperiments.load_pickled_result(
+            result_path_prefix
+            + '/'
+            + str(iterations)
+            + '_Iterations/'
+            + str(input_id)
+            + '_predicates-newQUBO/trial'
+            + str(trial)
+        )
 
-        # print(f"Saved postprocess output to {out_path.resolve()}")
+        energy_csv_path = (
+            f'base/Week84/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/'
+            f'iterations_{iterations}/reps_{reps}/{current_optim}/input{input_id}/trial{trial}/'
+            f'energy_per_iteration_{iterations}_{current_optim}_{reps}_{trial}.csv'
+        )
 
-        # out_path = "readout_summary_bitstring_energy_prob.csv"
+        res = convert_callback_csv_to_history(energy_csv_path)
 
-        # Postprocessing.postprocess_IBMQ_response(response, card, pred, pred_sel,[150])
+        # Generate readout summaries for both:
+        #   eval_count 0 = SPIQ initialization point, if present in CSV
+        #   eval_count 1 = first optimizer callback/evaluation
+        #   eval_count 2 = second optimizer callback/evaluation (if present), to see some progression
+        res_filtered = [
+            item for item in res
+            if int(item.get("eval_count", -1)) in [1]
+        ]
 
-        # Postprocessing.write_bitstring_energy_prob(response, out_path)
+        if not res_filtered:
+            print(
+                "[WARNING] No eval_count 1 found in energy CSV. "
+                "Check whether iteration 1 was written correctly."
+            )
+        else:
+            found_evals = sorted(set(int(item["eval_count"]) for item in res_filtered))
+            print(f"Generating readout summaries for eval counts: {found_evals}")
 
-        # Postprocessing1.readout(response, card, pred, pred_sel, card_dict=None)
-
-
-        # Postprocessing.write_bitstring_energy_prob(response,card, pred, pred_sel)
-
-        ## for readout of final outputs
+        batch_run_callback_history_and_postprocess(
+            res_filtered,
+            qubo=qubo,
+            card=card,
+            pred=pred,
+            pred_sel=pred_sel,
+            PS1=PS1,
+            reps=reps,
+            trial_id=trial,
+            tag=reps,
+            current_optim=current_optim,
+            iterations=iterations,
+            input_id=input_id
+        )
 
         Postprocessing.postprocess_qiskit_with_readout(
             response,
@@ -349,9 +478,9 @@ if __name__ == '__main__':
             pred,
             pred_sel,
             trial_id=trial,
-            tag=2,
-            current_optim="COBYLA",
-            iterations=10000,
+            tag=reps,
+            current_optim=current_optim,
+            iterations=iterations,
         )
 
         op, offset = qubo.to_ising()
@@ -364,19 +493,3 @@ if __name__ == '__main__':
         print("minimum eigenvalue:", result.eigenvalue)
         print("minimum eigenstate:", result.eigenstate)
         print("minimum energy with offset:", result.eigenvalue.real + offset)
-
-
-        # out_path = "ising_hamiltonian.txt"
-        # with open(out_path, "w", encoding="utf-8") as f:
-        #     for i in thre:
-        #         qubo, weight_a = QUBOGenerator.generate_QUBO_for_IBMQ([10,15,20], i, 0,[], [])
-        #         op, offset = qubo.to_ising()
-        #         f.write(f"=== op (Ising Hamiltonian of thres {i}) ===\n")
-        #         f.write(str(op))
-        #         f.write("\n\n=== offset ===\n")
-        #         f.write(str(offset))
-        #         f.write("\n\n=== weight_a ===\n")
-        #         f.write(str(weight_a))
-        #         f.write("\n")
-
-        # print(f"Saved to {out_path}")
