@@ -1,0 +1,2 @@
+eval_count,bitstring,count,prob,energy,cost,is_optimal,join_order_json
+4550,001110100001010011101011,1,0.0078125,3042.5,149.0,1,"[1, 0, 2]"

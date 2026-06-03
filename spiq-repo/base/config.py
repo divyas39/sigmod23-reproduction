@@ -1,0 +1,18 @@
+configuration = {
+    "dwave-processing-queries": "collected",
+    "dwave-processing": "collected",
+    "ibmq-processing": "cpu",
+    "ibmq-token": "",
+    "ibmq-hub": "open",
+    "ibmq-group": "open",
+    "ibmq-project": "main",
+    "ibmq-backend": "",
+    "codesign-queries": "collected",
+    "qiskit-circuit-transpilation": "collected",
+    "tket-circuit-transpilation": "collected",
+    "ionq-token": "",
+    "gurobi-wlsaccessid": "829ca087-c8da-44e2-9f68-6de196b3ecab",
+    "gurobi-wlssecret": "bac79d3d-61a1-424e-9e9a-fa90eb85e5aa",
+    "gurobi-licenseid": 2725634,
+    "plot": "default",
+}

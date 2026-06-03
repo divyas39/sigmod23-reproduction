@@ -1,0 +1,241 @@
+---
+title: "plot"
+output:
+  pdf_document: default
+  html_document: default
+date: "2025-11-13"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+```{r}
+library(dplyr)
+get_mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+path <- "/Users/ruokun/Desktop/Project/P.3/Rep1"
+files <- sprintf("%s/energy_per_iteration_1000_%d.csv", path, 1:5)
+summary_list <- lapply(1:5, function(i) {
+  df <- read.csv(files[i], header = TRUE)
+  data.frame(
+    Run = paste0("Run_", i),
+    Mean_Energy   = mean(df$energy),
+    Median_Energy = median(df$energy),
+    SD_Energy     = sd(df$energy),
+    Min_Energy    = min(df$energy),
+    Max_Energy    = max(df$energy),
+    Mode_Energy   = get_mode(df$energy)  )
+})
+summary_table <- bind_rows(summary_list)
+print(summary_table)
+
+
+
+```
+
+```{r}
+library(ggplot2)
+
+```
+```{r}
+mode_list <- list() 
+path <- "/Users/ruokun/Desktop/Project/P.3/reps_2/0_predicates"
+get_mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+for (i in 1:5) {
+  
+file_path <- sprintf("%s/trial_%d/energy_per_iteration_1000.csv", path, i)
+  df <- read.csv(file_path, header = TRUE)
+  df$iteration <- seq_len(nrow(df))
+  mode_energy <- get_mode(df$energy)
+  mode_list[[paste0("Run_", i)]] <- mode_energy
+  p <- ggplot(df, aes(x = iteration, y = energy)) +
+    geom_line(color = "blue") +
+    geom_hline(yintercept = mode_energy, color = "red", linetype = "dashed", size = 1) +
+    labs(
+      title = paste("Energy per Iteration - Run", i),
+      x = "Iteration",
+      y = "Energy"
+    ) +
+    theme_minimal(base_size = 14)
+  
+  print(p)
+  out_file <- sprintf("plot_run_%d.png", i)
+  ggsave(out_file, p, width = 8, height = 4, dpi = 300)
+}
+
+```
+```{r}
+plot_func1=function(absolute_path,file,rep=1,model="AQGD"){
+  mode_list <- list() 
+get_mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+for (i in 1:5) {
+  
+file_path <- sprintf(file, absolute_path, i)
+  df <- read.csv(file_path, header = TRUE)
+  df$iteration <- seq_len(nrow(df))
+  mode_energy <- get_mode(df$energy)
+  mode_list[[paste0("Run_", i)]] <- mode_energy
+  p <- ggplot(df, aes(x = iteration, y = energy)) +
+    geom_line(color = "blue") +
+    labs(
+      title = paste("Energy per Call back - Run", i),
+      x = "Callback count",
+      y = "Energy"
+    ) +
+    theme_minimal(base_size = 14)
+  print(min(df$energy))
+  print(p)
+  out_file <- file.path(sprintf("/Users/ruokun/Desktop/Project/P.3/Result/%s/Reps_%d",model,rep), sprintf("plot_run_%s_run_rep_%d_%d.png",model,rep, i))
+  ggsave(out_file, p, width = 8, height = 4, dpi = 300)
+}
+}
+```
+
+
+
+
+
+
+```{r}
+plot_func <- function(absolute_path, file, reps=1) {
+  mode_list <- list()
+  
+  get_mode <- function(x) {
+    ux <- unique(x)
+    ux[which.max(tabulate(match(x, ux)))]
+  }
+  
+  all_df <- list()
+  
+  for (i in 1:5) {
+    file_path <- sprintf(file, absolute_path, i)
+    df <- read.csv(file_path, header = TRUE)
+    
+    df$iteration <- seq_len(nrow(df))
+    run_name <- paste0("Run_", i)
+    df$Run <- run_name  
+    
+    mode_energy <- get_mode(df$energy)
+    mode_list[[run_name]] <- mode_energy
+    
+    print(min(df$energy))
+    
+    all_df[[i]] <- df
+  }
+  
+  df_all <- do.call(rbind, all_df)
+  modes_df <- data.frame(
+    Run = names(mode_list),
+    mode_energy = unlist(mode_list),
+    stringsAsFactors = FALSE
+  )
+  
+  library(ggplot2)
+  
+  p <- ggplot(df_all, aes(x = iteration, y = energy, color = Run)) +
+    geom_line() +
+    
+    labs(
+      title = "Energy per call back",
+      x = "Callback count",
+      y = "Energy"
+    ) +
+    theme_minimal(base_size = 14)
+  
+  print(p)
+  out_file <- file.path("/Users/ruokun/Desktop/Project/P.3", sprintf("plot_all_runs_reps_COBYLA_%s.png", reps))
+  ggsave(out_file, p, width = 8, height = 4, dpi = 300)
+  
+  invisible(mode_list)
+}
+
+
+```
+##AQGD
+
+### reps=1
+```{r}
+absolute_path <- "/Users/ruokun/Desktop/Project/P.3/AQDG/reps_1/0_predicates"
+file<-"%s/trial_%d/energy_per_iteration_1000.csv"
+plot_func1(absolute_path,file,rep = 1)
+```
+### reps=2
+```{r}
+absolute_path <- "/Users/ruokun/Desktop/Project/P.3/AQDG/reps_2/0_predicates"
+file<-"%s/trial_%d/energy_per_iteration_1000.csv"
+plot_func1(absolute_path,file,rep=2)
+```
+###reps=3
+```{r}
+absolute_path <- "/Users/ruokun/Desktop/Project/P.3/AQDG/reps_3/0_predicates"
+file<-"%s/trial_%d/energy_per_iteration_1000.csv"
+plot_func1(absolute_path,file,rep=3)
+```
+## COBYLA
+## each iteration produce only one call back energy
+### reps=1
+```{r}
+absolute_path <- "/Users/ruokun/Desktop/Project/P.3/iterations_1000/reps_1/COBYLA"
+file<-"%s/energy_per_iteration_1000_COBYLA_1_%d.csv"
+plot_func(absolute_path,file,1)
+```
+### reps=2
+```{r}
+absolute_path <- "/Users/ruokun/Desktop/Project/P.3/iterations_1000/reps_2/COBYLA"
+file<-"%s/energy_per_iteration_1000_COBYLA_2_%d.csv"
+plot_func1(absolute_path,file,2)
+```
+reps=3
+```{r}
+absolute_path <- "/Users/ruokun/Desktop/Project/P.3/iterations_1000/reps_3/COBYLA"
+file<-"%s/energy_per_iteration_1000_COBYLA_3_%d.csv"
+plot_func(absolute_path,file,3)
+```
+## SPSA
+## reps1
+```{r}
+absolute_path <- "/Users/ruokun/Desktop/Project/P.3/iterations_1000/reps_1/SPSA"
+file<-"%s/energy_per_iteration_1000_SPSA_1_%d.csv"
+plot_func1(absolute_path,file,model="SPSA",rep=1)
+```
+## reps2
+```{r}
+absolute_path <- "/Users/ruokun/Desktop/Project/P.3/iterations_1000/reps_2/SPSA"
+file<-"%s/energy_per_iteration_1000_SPSA_2_%d.csv"
+plot_func1(absolute_path,file,model="SPSA",rep=2)
+```
+## reps3
+```{r}
+absolute_path <- "/Users/ruokun/Desktop/Project/P.3/iterations_1000/reps_3/SPSA"
+file<-"%s/energy_per_iteration_1000_SPSA_3_%d.csv"
+plot_func1(absolute_path,file,model="SPSA",rep=3)
+```

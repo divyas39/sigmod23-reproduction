@@ -1,0 +1,10 @@
+{
+  "runtime_sec": 4025.677522982005,
+  "runtime_min": 67.09462538303342,
+  "trial": 30,
+  "reps": 2,
+  "optimizer": "COBYLA",
+  "input": 0,
+  "iterations": 10000,
+  "spiq_json": null
+}

@@ -1,0 +1,119 @@
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:AQGD
+1000,0,0.0674,0.0293
+1000,1,0.1104,0.0322
+1000,2,0.0225,0.0098
+1000,3,0.0342,0.0098
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:COBYLA
+1000,0,0.1455,0.0518
+1000,1,0.1279,0.0439
+1000,2,0.1748,0.0625
+1000,3,0.2490,0.0791
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:SPSA
+1000,0,0.0967,0.0322
+1000,1,0.0098,0.0068
+1000,2,0.0615,0.0303
+1000,3,0.1367,0.0498
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:AQGD
+5,0,0.0840,0.0322
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:COBYLA
+5,0,0.0898,0.0303
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:AQGD
+5,0,0.0889,0.0352
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:COBYLA
+5,0,0.1016,0.0303
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:COBYLA
+100,0,0.1143,0.0322
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:COBYLA
+100,0,0.0986,0.0352
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:COBYLA
+100,0,0.1172,0.0479
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:COBYLA
+5,0,0.1611,0.0576
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:AQGD
+2,0,0.1045,0.0322
+2,1,0.1211,0.0410
+2,2,0.1367,0.0518
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:COBYLA
+2,0,0.0918,0.0273
+2,1,0.0996,0.0312
+2,2,0.1113,0.0488
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:SPSA
+2,0,0.1094,0.0303
+2,1,0.0225,0.0049
+2,2,0.0400,0.0146
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:AQGD
+1000,0,0.0244,0.0088
+1000,1,0.0762,0.0244
+1000,2,0.0830,0.0312
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:COBYLA
+1000,0,0.1592,0.0625
+1000,1,0.1807,0.0576
+1000,2,0.1699,0.0566
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:SPSA
+1000,0,0.1035,0.0361
+1000,1,0.0420,0.0146
+1000,2,0.0459,0.0176
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:AQGD
+6,0,0.0488,0.0137
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:COBYLA
+6,0,0.0850,0.0254
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:SPSA
+6,0,0.0410,0.0156
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:AQGD
+6,0,0.0625,0.0215
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:COBYLA
+6,0,0.0830,0.0254
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:SPSA
+6,0,0.0234,0.0059
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:AQGD
+6,0,0.0850,0.0234
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:COBYLA
+6,0,0.0918,0.0254
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:SPSA
+6,0,0.0654,0.0137
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:AQGD
+6,0,0.0840,0.0273
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:COBYLA
+6,0,0.1172,0.0420
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:SPSA
+6,0,0.1133,0.0439
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:AQGD
+6,0,0.1113,0.0342
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:COBYLA
+6,0,0.1807,0.0576
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:SPSA
+6,0,0.1035,0.0420
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:AQGD
+6,0,0.0947,0.0264
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:COBYLA
+6,0,0.1445,0.0547
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:SPSA
+6,0,0.0186,0.0029
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:AQGD
+1000,0,0.0967,0.0273
+1000,1,0.1396,0.0488
+1000,2,0.0605,0.0146
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:COBYLA
+1000,0,0.2891,0.0996
+1000,1,0.1143,0.0469
+1000,2,0.0967,0.0293
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:SPSA
+1000,0,0.0869,0.0312
+1000,1,0.0615,0.0137
+1000,2,0.0791,0.0264
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:1,Optimizer:AQGD
+1000,0,0.0391,0.0098
+1000,1,0.1250,0.0420
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:AQGD
+1000,0,0.0391,0.0098
+1000,1,0.1250,0.0420
+1000,2,0.0625,0.0186
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:COBYLA
+1000,0,0.1865,0.0547
+1000,1,0.1055,0.0449
+1000,2,0.1611,0.0508
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:SPSA
+1000,0,0.0732,0.0264
+1000,1,0.0449,0.0225
+1000,2,0.1035,0.0371
+num_qaoa_iterations,num_predicates,valid_ratio,opt_ratio,Trial: 1,Reps:2,Optimizer:COBYLA

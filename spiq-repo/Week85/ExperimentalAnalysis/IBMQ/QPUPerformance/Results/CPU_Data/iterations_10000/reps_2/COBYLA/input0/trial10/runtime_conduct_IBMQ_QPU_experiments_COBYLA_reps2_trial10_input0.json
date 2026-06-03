@@ -1,0 +1,10 @@
+{
+  "runtime_sec": 844.0060140588321,
+  "runtime_min": 14.066766900980534,
+  "trial": 10,
+  "reps": 2,
+  "optimizer": "COBYLA",
+  "input": 0,
+  "iterations": 10000,
+  "spiq_json": "/home/repro/spiq_outputs_noflag/spiq_initial_point_input0_reps2_4rel_2pred.json"
+}

@@ -1,0 +1,61 @@
+capi_return is NULL
+Call-back cb_calcfc_in__cobyla__user__routines failed.
+Card:
+[1.0, 1.176, 1.301, 1.699]
+Pred sel:
+[-1.0, -0.097]
+Vanilla penalty weight: 2
+Traceback (most recent call last):
+  File "IBMQExperiments.py", line 597, in <module>
+    conduct_IBMQ_QPU_experiments()
+  File "IBMQExperiments.py", line 387, in conduct_IBMQ_QPU_experiments
+    response,init_point, used_eval = solve_with_QAOA(qubo, iterations, use_local_simulator=True,result_dir=result_dir,reps=TAG,
+  File "IBMQExperiments.py", line 335, in solve_with_QAOA
+    qaoa_result = qaoa.solve(qubo)
+  File "/home/repro/.local/lib/python3.8/site-packages/qiskit_optimization/algorithms/minimum_eigen_optimizer.py", line 197, in solve
+    return self._solve_internal(operator, offset, problem_, problem)
+  File "/home/repro/.local/lib/python3.8/site-packages/qiskit_optimization/algorithms/minimum_eigen_optimizer.py", line 210, in _solve_internal
+    eigen_result = self._min_eigen_solver.compute_minimum_eigenvalue(operator)
+  File "/home/repro/.local/lib/python3.8/site-packages/qiskit/algorithms/minimum_eigen_solvers/vqe.py", line 539, in compute_minimum_eigenvalue
+    opt_result = self.optimizer.minimize(
+  File "/home/repro/.local/lib/python3.8/site-packages/qiskit/algorithms/optimizers/scipy_optimizer.py", line 129, in minimize
+    raw_result = minimize(
+  File "/home/repro/.local/lib/python3.8/site-packages/scipy/optimize/_minimize.py", line 702, in minimize
+    res = _minimize_cobyla(fun, x0, args, constraints, callback=callback,
+  File "/home/repro/.local/lib/python3.8/site-packages/scipy/optimize/_cobyla_py.py", line 34, in wrapper
+    return func(*args, **kwargs)
+  File "/home/repro/.local/lib/python3.8/site-packages/scipy/optimize/_cobyla_py.py", line 270, in _minimize_cobyla
+    xopt, info = cobyla.minimize(calcfc, m=m, x=np.copy(x0), rhobeg=rhobeg,
+  File "/home/repro/.local/lib/python3.8/site-packages/scipy/optimize/_cobyla_py.py", line 258, in calcfc
+    f = fun(np.copy(x), *args)
+  File "/home/repro/.local/lib/python3.8/site-packages/qiskit/algorithms/minimum_eigen_solvers/vqe.py", line 624, in energy_evaluation
+    sampled_expect_op = self._circuit_sampler.convert(expect_op, params=param_bindings)
+  File "/home/repro/.local/lib/python3.8/site-packages/qiskit/opflow/converters/circuit_sampler.py", line 218, in convert
+    sampled_statefn_dicts = self.sample_circuits(circuit_sfns=circs, param_bindings=p_b)
+  File "/home/repro/.local/lib/python3.8/site-packages/qiskit/opflow/converters/circuit_sampler.py", line 337, in sample_circuits
+    results = self.quantum_instance.execute(
+  File "/home/repro/.local/lib/python3.8/site-packages/qiskit/utils/quantum_instance.py", line 790, in execute
+    run_circuits(
+  File "/home/repro/.local/lib/python3.8/site-packages/qiskit/utils/run_circuits.py", line 523, in run_circuits
+    job, job_id = _safe_submit_circuits(
+  File "/home/repro/.local/lib/python3.8/site-packages/qiskit/utils/run_circuits.py", line 658, in _safe_submit_circuits
+    job = _run_circuits_on_backend(
+  File "/home/repro/.local/lib/python3.8/site-packages/qiskit/utils/run_circuits.py", line 743, in _run_circuits_on_backend
+    return backend.run(circuits, **run_kwargs)
+  File "/home/repro/.local/lib/python3.8/site-packages/qiskit/utils/deprecation.py", line 27, in wrapper
+    return func(*args, **kwargs)
+  File "/home/repro/.local/lib/python3.8/site-packages/qiskit/providers/aer/backends/aerbackend.py", line 215, in run
+    aer_job.submit()
+  File "/home/repro/.local/lib/python3.8/site-packages/qiskit/providers/aer/jobs/aerjob.py", line 58, in submit
+    self._future = self._executor.submit(self._fn, self._qobj, self._job_id)
+  File "/usr/lib/python3.8/concurrent/futures/thread.py", line 188, in submit
+    self._adjust_thread_count()
+  File "/usr/lib/python3.8/concurrent/futures/thread.py", line 213, in _adjust_thread_count
+    t.start()
+  File "/usr/lib/python3.8/threading.py", line 857, in start
+    self._started.wait()
+  File "/usr/lib/python3.8/threading.py", line 558, in wait
+    signaled = self._cond.wait(timeout)
+  File "/usr/lib/python3.8/threading.py", line 302, in wait
+    waiter.acquire()
+KeyboardInterrupt
