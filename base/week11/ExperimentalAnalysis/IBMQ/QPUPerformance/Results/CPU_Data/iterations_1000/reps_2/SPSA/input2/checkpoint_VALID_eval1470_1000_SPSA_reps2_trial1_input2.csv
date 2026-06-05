@@ -1,2 +1,0 @@
-eval_count,bitstring,count,prob,energy,cost,is_optimal,join_order_json
-1470,011101000110001111110111100101,1,0.0078125,14163.5,180.0,0,"[0, 2, 1]"
