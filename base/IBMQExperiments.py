@@ -508,6 +508,16 @@ def solve_with_QAOA(qubo, iterations, reps=TAG, use_local_simulator=False,result
     ising_offset = float(ising_offset)
     print(f"[energy-scale] vanilla QAOA callback energies will be logged as QUBO-scale: Ising mean + offset ({ising_offset})")
 
+    # Qiskit QAOA callback reports the Ising expectation value.
+    # Samples/postprocessing in this file use qubo.objective.evaluate(x),
+    # which is in the original QUBO objective scale.  Convert every
+    # callback energy to QUBO scale by adding the Ising offset once here.
+    # This makes energy_per_iteration_*.csv directly comparable with the
+    # average energy computed from sampled bitstring distributions.
+    _, ising_offset = qubo.to_ising()
+    ising_offset = float(ising_offset)
+    print(f"[energy-scale] vanilla QAOA callback energies will be logged as QUBO-scale: Ising mean + offset ({ising_offset})")
+
     min_order, alt_min_order, _ = Postprocessing.get_optimal_join_order(card, pred, pred_sel)
     # Track minimum QUBO-scale energy seen during optimization and the corresponding parameters
     min_energy_seen = float('inf')
@@ -616,6 +626,11 @@ def solve_with_QAOA(qubo, iterations, reps=TAG, use_local_simulator=False,result
     def callback(eval_count, parameters, mean, metadata):
 
         
+        # `mean` is the raw Ising expectation from Qiskit.
+        # Add the offset so the logged callback energy is on the same
+        # QUBO-objective scale as qubo.objective.evaluate(x) used for samples.
+        energy_value_ising = float(np.real(mean))
+        energy_value = energy_value_ising + ising_offset
         # `mean` is the raw Ising expectation from Qiskit.
         # Add the offset so the logged callback energy is on the same
         # QUBO-objective scale as qubo.objective.evaluate(x) used for samples.

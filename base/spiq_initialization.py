@@ -14,6 +14,7 @@ import Scripts.QUBOGenerator1 as QUBOGenerator1
 from qiskit.circuit import ParameterExpression
 from qiskit.converters import circuit_to_dag
 from qiskit.algorithms import NumPyMinimumEigensolver
+from qiskit.algorithms import NumPyMinimumEigensolver
 
 try:
     from qiskit.qpy import dump as qpy_dump

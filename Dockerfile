@@ -64,7 +64,7 @@ ENV PATH $PATH:/home/repro/.local/bin
 RUN pip3 install -r requirements.txt
 ENV PYTHONPATH=/home/repro/sigmod-repro:${PYTHONPATH}
 RUN pip3 install pygad==3.3.1
-RUN pip3 install stim
+# RUN pip3 install stim
 
 # Gurobi ENV variables
 ENV GUROBI_HOME="/home/repro/sigmod-repro/gurobi/gurobi1002/linux64"

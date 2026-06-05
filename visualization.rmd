@@ -1009,3 +1009,15 @@ res <- cost_energy_boxplot_prob(glue("/Users/divyashekar/Documents/Sem2/QuantumD
 energy_values <- plot_energy_from_csv("/Users/divyashekar/Documents/Sem2/QuantumDB/sigmod23-reproduction/base/Week54/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/CPU_Data/iterations_10000/reps_2/COBYLA/input0/trial1/energy_per_iteration_10000_COBYLA_2_1.csv")
 print(energy_values)
 ```
+
+```{r}
+plot_energy_comparison("")
+```
+
+```{r}
+# energy vs iterations; uninitialized; 3 table  - problem1, trial1
+energy_values <- plot_energy_from_csv('/Users/divyashekar/Downloads/Iteration_10000_res\ 2/energy_per_iteration_10000_COBYLA_2_1.csv')
+print(energy_values)
+```
+
+

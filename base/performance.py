@@ -68,7 +68,7 @@ def conduct_QAOA_resource_estimation():
     problem_sizes = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
     predicate_settings = ["0_predicate", "credit", "n_predicate", "2n_predicate"]
 
-    out_csv = "week51/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/resource_estimation/qaoa_resource_estimation.csv"
+    out_csv = "Week5/ExperimentalAnalysis/IBMQ/QPUPerformance/Results/resource_estimation/qaoa_resource_estimation.csv"
     header = [
         "problem_size",
         "predicate_setting",
